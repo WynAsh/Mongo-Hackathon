@@ -11,9 +11,7 @@ COLLECTIONS = [
     "architectures", "requests", "regimes", "experiments", "lessons", "events", "state",
     "campaigns", "campaign_checkpoints", "policies", "metric_windows", "replay_plans",
     "trials", "evaluations", "summaries", "context_manifests", "docs",
-    "production_tasks", "production_checkpoints", "production_contexts",
-    "production_environments", "production_bundles", "production_evidence",
-    "production_lessons", "production_verifications",
+    "production_plans",
 ]
 _PROMOTION_LOCK = threading.Lock()
 

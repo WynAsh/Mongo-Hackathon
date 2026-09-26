@@ -2,21 +2,16 @@
 
 **An infrastructure engineer for teams that own NVIDIA hardware and need an open-source inference platform.**
 
-Harness turns a workload description and hardware inventory into an evidence-backed serving plan. It selects a compatible open model and stack, renders Kubernetes resources, engine configuration, environment templates, ordered commands, validation findings, and rollback instructions. Imported metrics, Kubernetes events, and logs can then drive performance changes or reliability fixes.
-
-The production workflow generates and validates artifacts; it never runs the commands or changes a cluster. Results distinguish offline validation, simulated evidence, and verification imported from an externally applied bundle. The original serving simulator remains at `/simulation` as a separate evidence-loop demonstration.
+Give Harness your hardware and workload; it picks a stack from six open-source projects, sizes the model onto your GPUs, and returns a plan: Kubernetes YAML, engine config, and the ordered shell commands (`install.sh`) to provision and deploy it. It never runs the commands or touches a cluster. The original serving simulator remains at `/simulation`.
 
 > Built entirely during the MongoDB Harness Engineering hackathon (Sep 26, 2026). One of us has built an inference router before; nothing from that repo is used here. The gateway is deliberately simple. All the intelligence is in the agent.
 
 ## Architecture (layers)
 
 ```
- Production UI          workload + inventory -> design -> artifacts -> operations
- Production workflow    assess -> context -> reason -> render -> validate -> publish -> learn
- Production catalog     pinned models + three compatible OSS recipes
- Evidence pipeline      Prometheus, Kubernetes event, and log normalization + diagnosis
- Artifact renderer      YAML, environment templates, commands, validation, diff, rollback
- Durable memory         Atlas tasks, checkpoints, manifests, bundles, evidence, lessons
+ Plan UI                hardware + workload -> plan, YAML, shell commands
+ Planner                size -> render YAML -> validate -> order commands (production/planner.py)
+ Catalog                pinned models, the six projects, three recipes (production/catalog.py)
  Simulation             original gateway, traffic replay, promotion and rollback demo
 ```
 
@@ -34,26 +29,27 @@ The production workflow generates and validates artifacts; it never runs the com
 | `replay_plans`, `trials`, `evaluations` | immutable traffic and promotion evidence | resumable/idempotent execution |
 | `summaries`, `context_manifests` | evidence-linked compaction and exact model inputs | bounded context |
 | `docs` | heading-aware documentation chunks and provenance | semantic + lexical retrieval |
-| `production_tasks`, `production_checkpoints`, `production_contexts` | durable provisioning, optimization, and repair stages | leases, revisions, bounded model context |
-| `production_environments`, `production_bundles`, `production_evidence`, `production_lessons`, `production_verifications` | proposed plans, immutable artifacts, operational observations, and outcomes | compare-and-swap publication + evidence lineage |
+| `production_plans` | every generated plan with its YAML and commands, keyed by input hash | download as a zip bundle |
 
-## Long-horizon workflow
+## Hardware to plan
 
-Production planning uses a separate durable workflow:
+`POST /api/production/plan` with `{inventory, workload, recipe_id?, model_id?}` runs one pure function, `build_plan`:
 
-```text
-ASSESS -> CONTEXT -> REASON -> RENDER -> VALIDATE -> PUBLISH -> LEARN -> COMPLETE
-```
+1. **Size**: pick Qwen3-4B or 8B, find the smallest tensor-parallel split that fits one node, and fill every GPU with replicas. List blockers (context too long, no fit, old Kubernetes, license).
+2. **Pick the stack**: unless `recipe_id` is given, the rules size all three stacks and the LLM (`AGENT_MODEL` via OpenRouter) picks one and explains why. The code rejects a pick that has blockers when another stack has none; with no key, an invalid answer, or an error, the rules' default is used. `decided_by` records which happened.
+3. **Render**: `k8s/*.yaml` (Gateway + `LLMInferenceService`, or `DynamoGraphDeployment`) with engine flags.
+4. **Validate**: parse each file and check it against pinned upstream CRD schemas.
+5. **Commands**: preflight -> cluster add-ons -> project installs -> namespace/secret -> dry-run + apply + wait -> smoke test, plus rollback. Emitted as `install.sh` and `PLAN.md`.
 
-The three initial recipes cover the six requested projects through compatible combinations:
+The three recipes cover the six projects:
 
 - Envoy AI Gateway + KServe `LLMInferenceService` + llm-d + vLLM.
 - NVIDIA Dynamo + vLLM.
 - NVIDIA Dynamo + SGLang.
 
-vLLM and SGLang are alternative engines. The catalog prevents combinations that are not documented together. Model quality and runtime performance remain provisional until their evaluation evidence is imported.
+vLLM and SGLang are alternative engines. Sizing is a BF16 screening estimate; load-test before production. Chart and image versions are pinned in `production/catalog.py`.
 
-`PUBLISH` means the validated proposal becomes the environment's current **review candidate** in Atlas. It does not apply Kubernetes resources. An operator downloads and applies the bundle outside Harness, then imports matching operational evidence before Harness can label the result runtime-verified.
+## Long-horizon workflow
 
 The original simulator workflow remains available:
 
