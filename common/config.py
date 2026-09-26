@@ -25,6 +25,16 @@ REPLICA_STARTUP_S = float(os.getenv("REPLICA_STARTUP_S", "2"))
 
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
 AGENT_MODEL = os.getenv("AGENT_MODEL", "anthropic/claude-sonnet-4.5")
+OPENROUTER_BASE_URL = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "openai/text-embedding-3-small")
+AGENT_CONTEXT_TOKENS = int(os.getenv("AGENT_CONTEXT_TOKENS", "12000"))
+
+CAMPAIGN_ID = os.getenv("CAMPAIGN_ID", "default")
+CAMPAIGN_MAX_EXPERIMENTS = int(os.getenv("CAMPAIGN_MAX_EXPERIMENTS", "20"))
+TRIAL_REPEATS = int(os.getenv("TRIAL_REPEATS", "3"))
+MIN_TRIAL_REQUESTS = int(os.getenv("MIN_TRIAL_REQUESTS", "30"))
+POST_PROMOTION_VERIFY_S = int(os.getenv("POST_PROMOTION_VERIFY_S", "20"))
+DOC_SOURCES = tuple(source.strip() for source in os.getenv("DOC_SOURCES", "").split(",") if source.strip())
 
 SLO_P95_MS = float(os.getenv("SLO_P95_MS", "4000"))
 WINDOW_S = int(os.getenv("WINDOW_S", "20"))            # observation window
