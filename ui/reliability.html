@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Harness · Reliability</title>
+<link rel="stylesheet" href="/ops.css">
+</head>
+<body>
+<header class="top"><span class="brand">HARNESS</span><a href="/production">Plan</a><a href="/performance">Performance</a><a class="on" href="/reliability">Reliability</a><a href="/simulation">Simulation</a></header>
+<div class="wrap">
+<form class="card" id="form">
+  <h1>Reliability Engineer</h1>
+  <div class="muted">Metrics, Kubernetes events, and logs in, a diagnosis and a scoped, validated repair out. A fix stays proposed until later evidence confirms it.</div>
+
+  <h2>1. Deployment</h2>
+  <label for="base">Plan, or an earlier change built on it</label>
+  <select id="base"></select>
+  <div class="kv" id="baseInfo" style="margin-top:4px"></div>
+  <div class="row">
+    <div><label for="slo">p95 latency SLO (ms)</label><input id="slo" type="number" min="1" value="4000"></div>
+    <div><label for="err">Max error rate</label><input id="err" type="number" min="0" max="1" step="0.01" value="0.05"></div>
+  </div>
+
+  <h2>2. Evidence</h2>
+  <label for="fixture">Fixture</label>
+  <select id="fixture"><option value="">Paste my own export</option></select>
+  <textarea id="payload" rows="9" style="font:11px ui-monospace,monospace;margin-top:6px" placeholder="kubectl events/pods JSON, pod logs, or metrics…"></textarea>
+  <div class="muted">Prometheus API JSON, <code>kubectl get -o json</code>, <code>{"data": {...}}</code> metrics, or plain log text. Secrets are redacted before storage.</div>
+
+  <button class="btn primary" type="submit">Diagnose incident →</button>
+  <div class="error" id="error"></div>
+
+  <h2>Past incidents</h2>
+  <div id="history"></div>
+</form>
+
+<main class="card" id="result"><div class="empty">Pick a deployment and an incident export, then diagnose.</div></main>
+</div>
+<script>window.OPS = {role: "reliability", name: "Reliability Engineer"};</script>
+<script src="/ops.js"></script>
+</body>
+</html>

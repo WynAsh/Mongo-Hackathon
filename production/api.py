@@ -33,10 +33,25 @@ async def import_inventory(request: Request):
 
 @router.post("/plan")
 def plan(request: PlanRequest):
+    req = request.model_dump()
+    memory, lessons = None, []
+    try:  # recall lessons learned on the same GPU type; sizing and YAML stay deterministic
+        from production.harness import compile_context, manifest_view
+        from production.sim import gpu_spec
+        gpu = gpu_spec(req["inventory"])[0] if req["inventory"]["nodes"] else None
+        if gpu:
+            packet = compile_context(db.db(), campaign_id="provisioning", lineage="provisioning",
+                                     query=f"{req['workload']['task']} {gpu}", scope={"gpu": gpu})
+            memory = manifest_view(packet)
+            lessons = [{"id": i["item_id"], "lesson": i["detail"]} for i in memory["included"] if i["memory_type"] == "semantic"]
+    except Exception:  # noqa: BLE001
+        memory = None
+    advisor = (lambda r, c: llm_advisor({**r, "lessons": lessons}, c)) if lessons else llm_advisor
     try:
-        result = build_plan(request.model_dump(), advisor=llm_advisor)
+        result = build_plan(req, advisor=advisor)
     except ValueError as exc:
         raise HTTPException(422, str(exc))
+    result["memory"] = memory
     db.db().production_plans.replace_one({"plan_id": result["plan_id"]}, result, upsert=True)
     return result
 

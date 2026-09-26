@@ -177,14 +177,79 @@ spec:
             nvidia.com/gpu: {_q(a["gpus_per_replica"])}
           requests:
             nvidia.com/gpu: {_q(a["gpus_per_replica"])}
-'''
+{_probes_yaml(p, 8)}'''
 
 
-def _dynamo_yaml(p):
+def _probes_yaml(p, indent):
+    """Probe tuning from a reliability change (vLLM /health on :8000). Provisioning plans set none."""
+    probes = p.get("probes") or {}
+    lines = []
+    if {"readiness_initial_delay_seconds", "readiness_timeout_seconds"} & set(probes):
+        lines += ["readinessProbe:", "  httpGet:", "    path: /health", "    port: 8000"]
+        if "readiness_initial_delay_seconds" in probes:
+            lines.append(f"  initialDelaySeconds: {probes['readiness_initial_delay_seconds']}")
+        if "readiness_timeout_seconds" in probes:
+            lines.append(f"  timeoutSeconds: {probes['readiness_timeout_seconds']}")
+    if "startup_probe_failure_threshold" in probes:
+        lines += ["startupProbe:", "  httpGet:", "    path: /health", "    port: 8000",
+                  "  periodSeconds: 10", f"  failureThreshold: {probes['startup_probe_failure_threshold']}"]
+    return "".join(" " * indent + line + "\n" for line in lines)
+
+
+def _dynamo_worker(p, name, kind, replicas, extra_args):
     m, e, a = p["model"], p["engine"], p["allocation"]
     sglang = p["recipe_id"] == "dynamo-sglang"
     flags = (("--model-path", "--context-length", "--max-running-requests", "--tp-size") if sglang
              else ("--model", "--max-model-len", "--max-num-seqs", "--tensor-parallel-size"))
+    extra = "".join(f"                - {arg}\n" for arg in extra_args)
+    return f'''    - name: {name}
+      type: {kind}
+      replicas: {replicas}
+      podTemplate:
+        spec:
+          containers:
+            - name: main
+              image: {p["image"]}
+              command: [python3, -m, {"dynamo.sglang" if sglang else "dynamo.vllm"}]
+              args:
+                - {flags[0]}
+                - {_q(m["model_id"])}
+                - --revision
+                - {_q(m["revision"])}
+                - {flags[1]}
+                - {_q(e["max_model_len"])}
+                - {flags[2]}
+                - {_q(e["max_num_seqs"])}
+                - {flags[3]}
+                - {_q(a["tensor_parallel"])}
+{extra}              envFrom:
+                - secretRef:
+                    name: hf-token-secret
+              resources:
+                limits:
+                  nvidia.com/gpu: {_q(a["gpus_per_replica"])}
+                requests:
+                  nvidia.com/gpu: {_q(a["gpus_per_replica"])}
+'''
+
+
+# Disaggregated prefill/decode worker flags; set only by an evolution campaign.
+# Verify against the pinned Dynamo release's disaggregation guide before rollout.
+PD_FLAGS = {"dynamo-vllm": {"prefill": ["--is-prefill-worker"], "decode": []},
+            "dynamo-sglang": {"prefill": ["--disaggregation-mode", "prefill", "--disaggregation-transfer-backend", "nixl"],
+                              "decode": ["--disaggregation-mode", "decode", "--disaggregation-transfer-backend", "nixl"]}}
+
+
+def _dynamo_yaml(p):
+    m, a = p["model"], p["allocation"]
+    sglang = p["recipe_id"] == "dynamo-sglang"
+    pd = p.get("disaggregation")
+    if pd:
+        flags = PD_FLAGS[p["recipe_id"]]
+        workers = (_dynamo_worker(p, "prefill", "prefill", pd["prefill_replicas"], flags["prefill"]) +
+                   _dynamo_worker(p, "decode", "decode", pd["decode_replicas"], flags["decode"]))
+    else:
+        workers = _dynamo_worker(p, "worker", "worker", a["replicas"], [])
     return f'''apiVersion: nvidia.com/v1beta1
 kind: DynamoGraphDeployment
 metadata:
@@ -206,35 +271,7 @@ spec:
               envFrom:
                 - secretRef:
                     name: hf-token-secret
-    - name: worker
-      type: worker
-      replicas: {a["replicas"]}
-      podTemplate:
-        spec:
-          containers:
-            - name: main
-              image: {p["image"]}
-              command: [python3, -m, {"dynamo.sglang" if sglang else "dynamo.vllm"}]
-              args:
-                - {flags[0]}
-                - {_q(m["model_id"])}
-                - --revision
-                - {_q(m["revision"])}
-                - {flags[1]}
-                - {_q(e["max_model_len"])}
-                - {flags[2]}
-                - {_q(e["max_num_seqs"])}
-                - {flags[3]}
-                - {_q(a["tensor_parallel"])}
-              envFrom:
-                - secretRef:
-                    name: hf-token-secret
-              resources:
-                limits:
-                  nvidia.com/gpu: {_q(a["gpus_per_replica"])}
-                requests:
-                  nvidia.com/gpu: {_q(a["gpus_per_replica"])}
-'''
+{workers}'''
 
 
 def _gatewayclass_yaml():

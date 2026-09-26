@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Harness · Performance</title>
+<link rel="stylesheet" href="/ops.css">
+</head>
+<body>
+<header class="top"><span class="brand">HARNESS</span><a href="/production">Plan</a><a class="on" href="/performance">Performance</a><a href="/reliability">Reliability</a><a href="/simulation">Simulation</a></header>
+<div class="wrap">
+<form class="card" id="form">
+  <h1>Performance Engineer</h1>
+  <div class="muted">Metrics in, an evidence-backed capacity or engine-limit change out, rendered and validated like the plan. Nothing is applied.</div>
+
+  <h2>1. Deployment</h2>
+  <label for="base">Plan, or an earlier change built on it</label>
+  <select id="base"></select>
+  <div class="kv" id="baseInfo" style="margin-top:4px"></div>
+  <div class="row">
+    <div><label for="slo">p95 latency SLO (ms)</label><input id="slo" type="number" min="1" value="4000"></div>
+    <div><label for="err">Max error rate</label><input id="err" type="number" min="0" max="1" step="0.01" value="0.05"></div>
+  </div>
+
+  <h2>2. Evidence</h2>
+  <label for="fixture">Fixture</label>
+  <select id="fixture"><option value="">Paste my own export</option></select>
+  <textarea id="payload" rows="9" style="font:11px ui-monospace,monospace;margin-top:6px" placeholder="Prometheus export: queue depth, GPU utilization, latency percentiles…"></textarea>
+  <div class="muted">Prometheus API JSON, <code>kubectl get -o json</code>, <code>{"data": {...}}</code> metrics, or plain log text. Secrets are redacted before storage.</div>
+
+  <button class="btn primary" type="submit">Analyze performance →</button>
+  <div class="error" id="error"></div>
+
+  <h2>Past analyses</h2>
+  <div id="history"></div>
+</form>
+
+<main class="card" id="result"><div class="empty">Pick a deployment and a metrics export, then analyze. Incidents found here are handed to the Reliability page first.</div></main>
+</div>
+<section class="card evo" id="evo">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+    <div><h1>Long-horizon evolution</h1>
+    <div class="muted">Traffic changes over a timeline derived from the selected plan. For each phase the harness observes, recalls memory from MongoDB, proposes an architecture move for this hardware, replays identical traffic on simulator backends, lets deterministic gates decide, learns, and checkpoints. Nothing is deployed.</div></div>
+    <div class="row" style="min-width:420px;grid-template-columns:1fr 1fr 1fr auto;align-items:end">
+      <div><label for="evoSlo">p95 SLO (ms)</label><input id="evoSlo" type="number" min="1"></div>
+      <div><label for="evoBudget">Experiment budget</label><input id="evoBudget" type="number" min="1" value="12"></div>
+      <div><label for="evoPast">Past campaigns</label><select id="evoPast"><option value="">—</option></select></div>
+      <button type="button" class="btn primary" id="evoStart" style="width:auto;margin:0">Run campaign →</button>
+    </div>
+  </div>
+  <div class="error" id="evoError"></div>
+  <div id="evoTimeline"></div>
+  <div id="evoBody"></div>
+</section>
+<script>window.OPS = {role: "performance", name: "Performance Engineer"};</script>
+<script src="/ops.js"></script>
+<script src="/evo.js"></script>
+</body>
+</html>

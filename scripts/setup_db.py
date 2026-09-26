@@ -24,7 +24,12 @@ def main(reset: bool, wipe_memory: bool):
             "context_manifests",
         ]
         learned = ["regimes", "experiments", "lessons", "summaries", "docs", "policies"]
-        operational += ["production_plans"]
+        operational += ["production_plans", "production_evidence", "production_changes", "production_verifications",
+                        "production_campaigns", "production_campaign_checkpoints", "production_campaign_bases",
+                        "production_experiments", "production_candidates", "production_revisions",
+                        "production_metric_windows", "production_replay_plans", "production_trials",
+                        "production_evaluations", "production_context_manifests", "production_events"]
+        learned += ["production_lessons", "production_summaries", "production_regimes", "production_policies"]
         for c in operational + (learned if wipe_memory else []):
             if c in names:
                 d[c].drop()
@@ -61,6 +66,13 @@ def main(reset: bool, wipe_memory: bool):
     d.docs.create_index("content_hash", unique=True)
     d.docs.create_index([("source", 1), ("chunk_index", 1)])
     d.production_plans.create_index("plan_id", unique=True)
+    d.production_evidence.create_index("evidence_id", unique=True)
+    d.production_changes.create_index("change_id", unique=True)
+    d.production_changes.create_index([("role", 1), ("created_at", -1)])
+    d.production_verifications.create_index("verification_id", unique=True)
+    d.production_verifications.create_index([("change_id", 1), ("created_at", -1)])
+    from production.harness import ensure_indexes as ensure_production_indexes
+    ensure_production_indexes(d)
     ensure_campaign_indexes(d)
 
     if not db.is_mock():

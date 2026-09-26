@@ -14,6 +14,8 @@ from common import config, db
 app = FastAPI()
 from production.api import install
 install(app)
+from production import ops_api
+ops_api.install(app)
 HERE = Path(__file__).parent
 
 
@@ -175,6 +177,31 @@ def _long_horizon_state(database, events):
 @app.get("/production")
 def index():
     return FileResponse(HERE / "production.html")
+
+
+@app.get("/performance")
+def performance():
+    return FileResponse(HERE / "performance.html")
+
+
+@app.get("/reliability")
+def reliability():
+    return FileResponse(HERE / "reliability.html")
+
+
+@app.get("/ops.js")
+def ops_script():
+    return FileResponse(HERE / "ops.js", media_type="text/javascript")
+
+
+@app.get("/evo.js")
+def evo_script():
+    return FileResponse(HERE / "evo.js", media_type="text/javascript")
+
+
+@app.get("/ops.css")
+def ops_styles():
+    return FileResponse(HERE / "ops.css", media_type="text/css")
 
 
 @app.get("/simulation")

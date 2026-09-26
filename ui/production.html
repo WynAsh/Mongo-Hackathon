@@ -32,7 +32,7 @@ ul.issues{margin:6px 0;padding-left:18px;font-size:12px}ul.issues.bad{color:var(
 </style>
 </head>
 <body>
-<header class="top"><span class="brand">HARNESS</span><a class="on" href="/production">Plan</a><a href="/simulation">Simulation</a></header>
+<header class="top"><span class="brand">HARNESS</span><a class="on" href="/production">Plan</a><a href="/performance">Performance</a><a href="/reliability">Reliability</a><a href="/simulation">Simulation</a></header>
 <div class="wrap">
 <form class="card" id="form">
   <h1>Inference plan</h1>
@@ -125,6 +125,8 @@ function render(r) {
       <div class="stat"><b>${a.estimated_gib_per_replica} GiB</b><span>estimated per replica</span></div>
       <div class="stat"><b>${p.engine.max_model_len.toLocaleString()} / ${p.engine.max_num_seqs}</b><span>max_model_len / max_num_seqs</span></div>
     </div>
+    ${r.memory ? `<div class="why"><span class="pill">Memory · ${r.memory.included.filter(i => i.memory_type === "semantic").length} lessons · ${r.memory.tokens}/${r.memory.budget} tokens</span>
+      ${r.memory.included.filter(i => i.memory_type === "semantic").map(i => `<p class="muted">${esc(i.detail)}</p>`).join("") || `<p class="muted">No lessons recorded on this GPU type yet; the harness adds them as Performance and Reliability work completes.</p>`}</div>` : ""}
     ${p.blockers.length ? `<h2>Blockers</h2><ul class="issues bad">${p.blockers.map(b => `<li>${esc(b)}</li>`).join("")}</ul>` : ""}
     <ul class="issues">${p.notes.map(n => `<li>${esc(n)}</li>`).join("")}</ul>
 

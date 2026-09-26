@@ -19,7 +19,8 @@ SYSTEM_PROMPT = (
     "not a reason, since every candidate routes across replicas. Never pick a candidate with blockers "
     "when one without blockers exists. Explain in 2-4 plain sentences that connect the traits to the "
     "choice and cite numbers from the candidates. Do not invent benchmarks, versions, or capabilities "
-    "beyond the input. No Markdown."
+    "beyond the input. If lessons_from_memory are supplied, they are outcomes measured earlier "
+    "on this GPU type; weigh them and mention any you relied on. No Markdown."
 )
 
 
@@ -43,7 +44,8 @@ def llm_advisor(request, candidates):
                         params={"temperature": 0.1, "max_tokens": 1200})
     agent = Agent(model=model, callback_handler=None, system_prompt=SYSTEM_PROMPT)
     prompt = json.dumps({"workload": request["workload"], "inventory": request["inventory"],
-                         "candidates": candidates}, default=str)
+                         "candidates": candidates, **({"lessons_from_memory": request["lessons"]} if request.get("lessons") else {})},
+                        default=str)
     result = agent(prompt, structured_output_model=StackChoice).structured_output
     if result is None:
         raise ValueError("empty structured output")
