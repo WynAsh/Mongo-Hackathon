@@ -4,10 +4,15 @@ import os
 try:
     from dotenv import load_dotenv  # optional
     load_dotenv()
+    # Hackathon credential handoff. This filename is gitignored and values in
+    # the normal .env/environment always win.
+    load_dotenv("atlas-credentials.env", override=False)
 except Exception:
     pass
 
-MONGO_URI = os.getenv("MONGO_URI", "mock")          # "mock" = in-memory mongomock (offline dev only)
+# A supplied Atlas credential bundle is explicit intent and takes precedence
+# over the mock-friendly value commonly left in .env.
+MONGO_URI = os.getenv("MONGODB_URI") or os.getenv("MONGO_URI", "mock")
 DB_NAME = os.getenv("DB_NAME", "harness_architect")
 
 # "docker" = real llm-d-inference-sim containers, "fake" = local python fakesim processes
@@ -34,7 +39,16 @@ CAMPAIGN_MAX_EXPERIMENTS = int(os.getenv("CAMPAIGN_MAX_EXPERIMENTS", "20"))
 TRIAL_REPEATS = int(os.getenv("TRIAL_REPEATS", "3"))
 MIN_TRIAL_REQUESTS = int(os.getenv("MIN_TRIAL_REQUESTS", "30"))
 POST_PROMOTION_VERIFY_S = int(os.getenv("POST_PROMOTION_VERIFY_S", "20"))
-DOC_SOURCES = tuple(source.strip() for source in os.getenv("DOC_SOURCES", "").split(",") if source.strip())
+DEFAULT_DOC_SOURCES = (
+    "https://docs.vllm.ai/en/latest/configuration/engine_args/",
+    "https://docs.vllm.ai/en/latest/serving/parallelism_scaling/",
+    "https://llm-d.ai/docs/dev/architecture/core/router/epp/scheduling",
+    "https://llm-d.ai/docs/well-lit-paths/foundations/optimized-baseline",
+    "https://llm-d.ai/docs/well-lit-paths/foundations/pd-disaggregation",
+    "https://llm-d.ai/docs/well-lit-paths/foundations/workload-autoscaling",
+)
+_DOC_SOURCES_VALUE = os.getenv("DOC_SOURCES", "").strip() or ",".join(DEFAULT_DOC_SOURCES)
+DOC_SOURCES = tuple(source.strip() for source in _DOC_SOURCES_VALUE.split(",") if source.strip())
 
 SLO_P95_MS = float(os.getenv("SLO_P95_MS", "4000"))
 WINDOW_S = int(os.getenv("WINDOW_S", "20"))            # observation window

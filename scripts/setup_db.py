@@ -62,31 +62,38 @@ def main(reset: bool, wipe_memory: bool):
     ensure_campaign_indexes(d)
 
     if not db.is_mock():
+        from pymongo.errors import OperationFailure
         from pymongo.operations import SearchIndexModel
         for coll, name in [("regimes", "regime_vec"), ("lessons", "lesson_vec")]:
             if coll not in d.list_collection_names():
                 d.create_collection(coll)
             existing = {i["name"] for i in d[coll].list_search_indexes()}
             if name not in existing:
-                d[coll].create_search_index(SearchIndexModel(name=name, type="vectorSearch", definition={
-                    "fields": [{"type": "vector", "path": "vector", "numDimensions": 4, "similarity": "euclidean"}]}))
-                print(f"vector index {coll}.{name} building (takes ~1 min)")
+                try:
+                    d[coll].create_search_index(SearchIndexModel(name=name, type="vectorSearch", definition={
+                        "fields": [{"type": "vector", "path": "vector", "numDimensions": 4, "similarity": "euclidean"}]}))
+                    print(f"vector index {coll}.{name} building (takes ~1 min)")
+                except OperationFailure as exc:
+                    print(f"vector index {coll}.{name} skipped: {exc.details.get('errmsg', exc)}")
         for coll, name in [("lessons", "lessons_text"), ("experiments", "experiments_text"),
                            ("docs", "docs_text")]:
             if coll not in d.list_collection_names():
                 d.create_collection(coll)
             existing = {i["name"] for i in d[coll].list_search_indexes()}
             if name not in existing:
-                d[coll].create_search_index(SearchIndexModel(name=name, type="vectorSearch", definition={
-                    "fields": [
-                        {"type": "vector", "path": "embedding", "numDimensions": 1536,
-                         "similarity": "cosine"},
-                        {"type": "filter", "path": "scope.model"},
-                        {"type": "filter", "path": "scope.gpu"},
-                        {"type": "filter", "path": "scope.serving_engine"},
-                        {"type": "filter", "path": "scope.regime_hash"},
-                    ]}))
-                print(f"vector index {coll}.{name} building (takes ~1 min)")
+                try:
+                    d[coll].create_search_index(SearchIndexModel(name=name, type="vectorSearch", definition={
+                        "fields": [
+                            {"type": "vector", "path": "embedding", "numDimensions": 1536,
+                             "similarity": "cosine"},
+                            {"type": "filter", "path": "scope.model"},
+                            {"type": "filter", "path": "scope.gpu"},
+                            {"type": "filter", "path": "scope.serving_engine"},
+                            {"type": "filter", "path": "scope.regime_hash"},
+                        ]}))
+                    print(f"vector index {coll}.{name} building (takes ~1 min)")
+                except OperationFailure as exc:
+                    print(f"vector index {coll}.{name} skipped: {exc.details.get('errmsg', exc)}")
 
     if not db.live_arch_doc():
         a = BASELINE_ARCH.model_dump()

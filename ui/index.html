@@ -3,152 +3,315 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Harness Architect</title>
+<title>Harness · Autonomous Infrastructure Engineer</title>
 <style>
-  :root { --bg:#0e1116; --panel:#161b22; --line:#2a313c; --ink:#e6edf3; --muted:#8b949e;
-          --good:#3fb950; --bad:#f85149; --warn:#d29922; --accent:#58a6ff; --mem:#bc8cff; }
-  * { box-sizing: border-box; }
-  body { margin:0; background:var(--bg); color:var(--ink); font:14px/1.45 ui-sans-serif,system-ui,sans-serif; }
-  header { display:flex; gap:16px; align-items:baseline; padding:14px 20px; border-bottom:1px solid var(--line); flex-wrap:wrap; }
-  header h1 { font-size:18px; margin:0; }
-  .pill { padding:2px 10px; border-radius:99px; background:var(--panel); border:1px solid var(--line); color:var(--muted); }
-  main { display:grid; grid-template-columns: minmax(0,1.6fr) minmax(0,1fr); gap:16px; padding:16px 20px; }
-  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
-  section { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:14px; min-width:0; }
-  h2 { font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin:0 0 10px; }
-  #log { height: calc(100vh - 130px); overflow:auto; }
-  .ev { display:grid; grid-template-columns: 64px 84px 1fr; gap:8px; padding:7px 0; border-bottom:1px solid var(--line); }
-  .ev time { color:var(--muted); font-variant-numeric: tabular-nums; }
-  .tag { font-size:11px; font-weight:600; text-transform:uppercase; }
-  .k-observe .tag { color:var(--bad); } .k-recall .tag { color:var(--mem); } .k-propose .tag { color:var(--accent); }
-  .k-test .tag, .k-results .tag { color:var(--warn); } .k-promote .tag { color:var(--good); }
-  .k-promote { background: rgba(63,185,80,.08); } .k-phase .tag { color:var(--muted); }
-  .sub { color:var(--muted); font-size:12px; margin-top:3px; }
-  .pools { display:flex; gap:10px; flex-wrap:wrap; margin:6px 0 4px; }
-  .pool { border:1px solid var(--line); border-radius:8px; padding:8px 10px; min-width:120px; }
-  .pool b { display:block; margin-bottom:6px; }
-  .gpu { display:inline-block; width:34px; height:24px; margin:2px; border-radius:4px; font-size:10px;
-         line-height:24px; text-align:center; font-weight:700; }
-  .gpu.t4 { background:#1f6feb33; border:1px solid #1f6feb; } .gpu.a100 { background:#8957e533; border:1px solid #8957e5; }
-  .flash { animation: flash 1.2s ease-out; } @keyframes flash { from { box-shadow: 0 0 0 3px var(--good); } to { box-shadow:none; } }
-  .side { display:flex; flex-direction:column; gap:16px; }
-  svg { width:100%; height:90px; }
-  .lesson { padding:6px 0; border-bottom:1px solid var(--line); }
-  .conf { color:var(--mem); font-size:12px; }
-  .memory-panel { display:grid; gap:12px; }
-  .memory-block { border-top:1px solid var(--line); padding-top:9px; min-width:0; }
-  .memory-block:first-child { border-top:0; padding-top:0; }
-  .memory-title { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.06em; margin-bottom:5px; }
-  .memory-pills { display:flex; gap:6px; flex-wrap:wrap; }
-  .memory-pills .pill { font-size:12px; }
-  .memory-ids { overflow-wrap:anywhere; }
-  .gate { display:inline-block; margin:2px 4px 2px 0; padding:1px 7px; border-radius:99px; border:1px solid var(--line); font-size:11px; }
-  .gate.pass { color:var(--good); } .gate.fail { color:var(--bad); }
+  :root {
+    --paper:#f5f2eb; --sheet:#fffdf8; --ink:#171a20; --muted:#686b70; --line:#d8d3c8;
+    --blue:#3157d5; --blue-soft:#e8edff; --violet:#7446d7; --green:#147a52; --green-soft:#e3f4eb;
+    --red:#b83a3a; --red-soft:#fae8e5; --amber:#9b6410; --amber-soft:#faefd7; --dark:#171a20;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; color:var(--ink); background:var(--paper); font:15px/1.55 Inter,ui-sans-serif,system-ui,-apple-system,sans-serif; }
+  body:before { content:""; position:fixed; inset:0; pointer-events:none; opacity:.22;
+    background-image:radial-gradient(#79746c 0.55px,transparent .55px); background-size:7px 7px; }
+  .shell { width:min(1120px,calc(100% - 32px)); margin:0 auto; position:relative; }
+  header { padding:34px 0 26px; border-bottom:1px solid var(--line); }
+  .brandline { display:flex; justify-content:space-between; align-items:center; gap:20px; }
+  .brand { font-size:13px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; }
+  .runtime { color:var(--muted); font-size:12px; text-align:right; }
+  .hero { padding:66px 0 54px; display:grid; grid-template-columns:minmax(0,1fr) 310px; gap:72px; align-items:end; }
+  .eyebrow { color:var(--blue); font-size:12px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; margin-bottom:16px; }
+  h1 { margin:0; max-width:760px; font:600 clamp(42px,6.2vw,78px)/.98 Georgia,serif; letter-spacing:-.04em; }
+  .lede { margin:25px 0 0; max-width:710px; color:#46494f; font-size:18px; }
+  .mission-state { background:var(--dark); color:white; border-radius:4px; padding:24px; box-shadow:10px 10px 0 #cbc5b9; }
+  .mission-state small { color:#abb2c0; text-transform:uppercase; letter-spacing:.12em; }
+  .mission-state strong { display:block; margin:8px 0 12px; font:500 28px/1.1 Georgia,serif; }
+  .pulse { display:inline-block; width:8px; height:8px; border-radius:50%; background:#55dc9a; margin-right:7px; box-shadow:0 0 0 5px #55dc9a22; }
+  .stage-wrap { border-top:1px solid var(--line); border-bottom:1px solid var(--line); padding:25px 0 19px; overflow-x:auto; }
+  .stage-rail { min-width:760px; display:flex; align-items:flex-start; }
+  .stage { flex:1; position:relative; padding-top:17px; color:#97928a; font-size:10px; letter-spacing:.06em; text-transform:uppercase; }
+  .stage:before { content:""; position:absolute; top:0; left:0; right:0; height:2px; background:var(--line); }
+  .stage:after { content:""; position:absolute; top:-4px; left:0; width:10px; height:10px; border-radius:50%; background:var(--line); }
+  .stage.done { color:var(--green); } .stage.done:before,.stage.done:after { background:var(--green); }
+  .stage.active { color:var(--blue); font-weight:800; } .stage.active:before { background:var(--blue); }
+  .stage.active:after { background:var(--sheet); border:3px solid var(--blue); top:-6px; width:12px; height:12px; box-shadow:0 0 0 5px var(--blue-soft); }
+  main { padding:62px 0 100px; }
+  .chapter { display:grid; grid-template-columns:170px minmax(0,1fr); gap:42px; padding:48px 0; border-top:1px solid var(--line); }
+  .chapter:first-child { border-top:0; padding-top:0; }
+  .chapter-label { color:var(--muted); font-size:11px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; }
+  .chapter-label b { display:block; color:var(--blue); font:500 34px/1 Georgia,serif; margin-bottom:10px; }
+  h2 { font:500 clamp(28px,4vw,46px)/1.08 Georgia,serif; letter-spacing:-.025em; margin:0 0 16px; }
+  h3 { margin:0 0 5px; font-size:14px; }
+  .agent-voice { border-left:4px solid var(--blue); padding:7px 0 7px 22px; margin:25px 0; font:500 23px/1.35 Georgia,serif; }
+  .meta-row { display:flex; flex-wrap:wrap; gap:8px; margin-top:18px; }
+  .token { padding:5px 10px; border:1px solid var(--line); border-radius:2px; color:var(--muted); font-size:12px; background:#ffffff80; }
+  .token.good { color:var(--green); border-color:#9acbb5; background:var(--green-soft); }
+  .token.bad { color:var(--red); border-color:#e0aaa3; background:var(--red-soft); }
+  .token.live { color:var(--blue); border-color:#aab8ee; background:var(--blue-soft); }
+  .signal-sentence { display:flex; align-items:baseline; gap:14px; flex-wrap:wrap; margin-top:20px; }
+  .signal-number { font:600 50px/1 Georgia,serif; letter-spacing:-.04em; }
+  .signal-number.bad { color:var(--red); } .signal-number.good { color:var(--green); }
+  .evidence-list { margin-top:25px; border-top:1px solid var(--line); }
+  .evidence { display:grid; grid-template-columns:34px 150px 1fr 65px; gap:12px; padding:15px 0; border-bottom:1px solid var(--line); align-items:start; }
+  .evidence .icon { width:25px; height:25px; display:grid; place-items:center; border-radius:50%; background:var(--blue-soft); color:var(--blue); font-weight:800; font-size:11px; }
+  .evidence .type { text-transform:uppercase; font-size:10px; letter-spacing:.09em; color:var(--muted); padding-top:4px; }
+  .evidence p { margin:2px 0 0; color:var(--muted); font-size:13px; }
+  .evidence .tokens { text-align:right; color:var(--muted); font-size:11px; }
+  .architecture-change { display:grid; grid-template-columns:1fr 56px 1fr; gap:18px; align-items:center; margin:28px 0; }
+  .arrow { text-align:center; color:var(--blue); font-size:30px; }
+  .arch { min-height:174px; padding:22px; background:var(--sheet); border:1px solid var(--line); box-shadow:4px 4px 0 #ded9cf; }
+  .arch.candidate { border-color:#8499e5; box-shadow:4px 4px 0 var(--blue-soft); }
+  .arch small { color:var(--muted); text-transform:uppercase; font-size:10px; letter-spacing:.1em; }
+  .arch .cost { float:right; color:var(--green); font-weight:800; }
+  .pool-row { display:flex; gap:7px; margin:21px 0 12px; flex-wrap:wrap; }
+  .gpu { padding:7px 10px; border-radius:2px; color:white; font-size:11px; font-weight:800; }
+  .gpu.t4 { background:#4662b6; } .gpu.a100 { background:#774bad; }
+  .protocol { display:flex; flex-wrap:wrap; gap:10px; padding:15px 0; color:var(--muted); font-size:13px; }
+  .protocol span:after { content:"→"; padding-left:10px; color:#aaa59b; }
+  .protocol span:last-child:after { content:""; }
+  .trial-table { width:100%; border-collapse:collapse; margin-top:22px; }
+  .trial-table th { text-align:left; color:var(--muted); font-size:10px; letter-spacing:.09em; text-transform:uppercase; padding:10px 8px; border-bottom:1px solid var(--line); }
+  .trial-table td { padding:12px 8px; border-bottom:1px solid var(--line); font-variant-numeric:tabular-nums; }
+  .trial-table .candidate { color:var(--blue); font-weight:700; }
+  .empty { color:var(--muted); font-style:italic; padding:18px 0; }
+  .gate-list { margin-top:22px; }
+  .gate { display:grid; grid-template-columns:30px 200px 1fr; gap:12px; padding:13px 0; border-bottom:1px solid var(--line); }
+  .gate-mark { font-weight:900; } .gate.pass .gate-mark { color:var(--green); } .gate.fail .gate-mark { color:var(--red); }
+  .gate span:last-child { color:var(--muted); }
+  .decision { margin-top:25px; padding:22px; background:var(--amber-soft); border-left:4px solid var(--amber); }
+  .decision.promote { background:var(--green-soft); border-color:var(--green); }
+  .decision.reject { background:var(--red-soft); border-color:var(--red); }
+  .lesson { margin-top:20px; background:var(--dark); color:white; padding:25px; }
+  .lesson small { color:#aeb5c2; text-transform:uppercase; letter-spacing:.1em; }
+  .lesson p { font:500 20px/1.4 Georgia,serif; margin:10px 0 0; }
+  details { margin-top:45px; border-top:1px solid var(--line); padding-top:20px; }
+  summary { cursor:pointer; color:var(--muted); text-transform:uppercase; letter-spacing:.1em; font-size:11px; font-weight:800; }
+  .log { margin-top:18px; }
+  .event { display:grid; grid-template-columns:82px 90px 1fr; gap:12px; padding:10px 0; border-bottom:1px solid var(--line); font-size:13px; }
+  .event time,.event .kind { color:var(--muted); } .event .kind { text-transform:uppercase; font-size:10px; letter-spacing:.08em; padding-top:3px; }
+  footer { padding:25px 0 45px; border-top:1px solid var(--line); display:flex; justify-content:space-between; gap:20px; color:var(--muted); font-size:12px; }
+  @media (max-width:760px) {
+    .hero { grid-template-columns:1fr; gap:35px; padding:45px 0; }
+    .chapter { grid-template-columns:1fr; gap:18px; }
+    .chapter-label { display:flex; gap:10px; align-items:center; } .chapter-label b { margin:0; }
+    .architecture-change { grid-template-columns:1fr; } .arrow { transform:rotate(90deg); }
+    .evidence { grid-template-columns:30px 1fr 50px; } .evidence .type { display:none; }
+    .gate { grid-template-columns:25px 1fr; } .gate span:last-child { grid-column:2; }
+    .event { grid-template-columns:72px 1fr; } .event div:last-child { grid-column:2; }
+  }
 </style>
 </head>
 <body>
-<header>
-  <h1>Harness Architect</h1>
-  <span class="pill" id="phase">traffic: —</span>
-  <span class="pill" id="p95now">p95: —</span>
-  <span class="pill" id="exps">experiments: 0</span>
-</header>
-<main>
-  <section><h2>Agent decision log</h2><div id="log"></div></section>
-  <div class="side">
-    <section><h2>Live serving setup</h2><div id="arch"></div></section>
-    <section><h2>Optimization memory</h2><div id="horizon" class="memory-panel"></div></section>
-    <section><h2>p95 latency (5s buckets) · dashed = SLO</h2><svg id="chart" viewBox="0 0 300 90" preserveAspectRatio="none"></svg></section>
-    <section><h2>Lessons in memory</h2><div id="lessons"></div></section>
-  </div>
+<header><div class="shell brandline">
+  <div class="brand">Harness / Architect</div>
+  <div class="runtime" id="runtime">connecting to the agent…</div>
+</div></header>
+
+<div class="shell">
+  <section class="hero">
+    <div>
+      <div class="eyebrow">Autonomous infrastructure engineering</div>
+      <h1>Keep inference fast. Prove every change. Spend less.</h1>
+      <p class="lede">Harness watches real model-serving demand, forms an evidence-backed hypothesis, tests it against an identical traffic replay, and changes production only when the numbers prove it should.</p>
+    </div>
+    <aside class="mission-state">
+      <small><span class="pulse"></span> Agent working now</small>
+      <strong id="stageName">Observe</strong>
+      <div id="stageSummary">Reading a stable live traffic window.</div>
+    </aside>
+  </section>
+</div>
+
+<div class="stage-wrap"><div class="shell"><div class="stage-rail" id="stageRail"></div></div></div>
+
+<main class="shell">
+  <section class="chapter">
+    <div class="chapter-label"><b>01</b>Understand demand</div>
+    <div>
+      <h2>The agent starts with a change in workload—not a guess.</h2>
+      <p id="observationCopy">Waiting for enough stable live traffic to characterize the workload.</p>
+      <div class="signal-sentence">
+        <span class="signal-number" id="p95">—</span>
+        <span>live p95 latency against a <b id="slo">—</b> policy SLO</span>
+      </div>
+      <div class="meta-row" id="signalMeta"></div>
+    </div>
+  </section>
+
+  <section class="chapter">
+    <div class="chapter-label"><b>02</b>Assemble evidence</div>
+    <div>
+      <h2>Only the smallest useful slice of memory reaches the model.</h2>
+      <p id="contextCopy">Policy, campaign state, current measurements, prior experiments, learned lessons, and serving documentation are selected under a strict token budget.</p>
+      <div class="meta-row" id="knowledgeMeta"></div>
+      <div class="evidence-list" id="evidenceList"><div class="empty">No context packet compiled yet.</div></div>
+    </div>
+  </section>
+
+  <section class="chapter">
+    <div class="chapter-label"><b>03</b>Form a hypothesis</div>
+    <div>
+      <h2>The architect proposes one measurable infrastructure change.</h2>
+      <div class="agent-voice" id="hypothesis">No proposal yet. The agent is still observing.</div>
+      <div class="meta-row" id="architectMeta"></div>
+      <div class="architecture-change">
+        <div class="arch" id="incumbentArch"></div>
+        <div class="arrow">→</div>
+        <div class="arch candidate" id="candidateArch"></div>
+      </div>
+      <div class="protocol" id="protocol"></div>
+    </div>
+  </section>
+
+  <section class="chapter">
+    <div class="chapter-label"><b>04</b>Prove it safely</div>
+    <div>
+      <h2>Incumbent and candidate receive the exact same persisted traffic.</h2>
+      <p id="replayCopy">A content-hashed replay removes traffic luck from the comparison. Trials run serially and alternate order.</p>
+      <table class="trial-table">
+        <thead><tr><th>Role</th><th>Repeat</th><th>Requests</th><th>p95 latency</th><th>Errors</th><th>GPU cost</th></tr></thead>
+        <tbody id="trialRows"><tr><td colspan="6" class="empty">No trials recorded yet.</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="chapter">
+    <div class="chapter-label"><b>05</b>Make the call</div>
+    <div>
+      <h2>The model cannot approve its own idea. Deterministic gates decide.</h2>
+      <div class="gate-list" id="gateList"><div class="empty">Evaluation begins after every paired repeat completes.</div></div>
+      <div class="decision" id="decision"><b>Pending proof.</b> The live architecture remains unchanged.</div>
+    </div>
+  </section>
+
+  <section class="chapter">
+    <div class="chapter-label"><b>06</b>Remember the outcome</div>
+    <div>
+      <h2>Every terminal experiment makes the next decision faster.</h2>
+      <p>A promoted configuration is verified on live traffic and automatically rolled back on regression. Either way, the evidence becomes scoped long-term memory for the next matching workload.</p>
+      <div class="lesson" id="lesson"><small>Long-term memory</small><p>No lesson written yet.</p></div>
+      <details><summary>Open the agent’s event transcript</summary><div class="log" id="log"></div></details>
+    </div>
+  </section>
 </main>
+
+<footer><div class="shell brandline"><span>MongoDB is the durable campaign memory.</span><span id="revision">campaign revision —</span></div></footer>
+
 <script>
-let lastVersion = null;
-const esc = s => String(s ?? "").replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
-const fmt = ts => new Date(ts*1000).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit",second:"2-digit"});
+const STAGES = ["OBSERVE","BUILD_CONTEXT","PROPOSE","VALIDATE","PREPARE_REPLAY","RUN_TRIALS","EVALUATE","PROMOTE","VERIFY_LIVE","LEARN","CHECKPOINT"];
+const LABELS = {OBSERVE:"Observe",BUILD_CONTEXT:"Recall",PROPOSE:"Reason",VALIDATE:"Validate",PREPARE_REPLAY:"Freeze replay",RUN_TRIALS:"Run trials",EVALUATE:"Evaluate",PROMOTE:"Promote",REJECT:"Reject",VERIFY_LIVE:"Verify live",LEARN:"Learn",CHECKPOINT:"Checkpoint"};
+const SUMMARIES = {OBSERVE:"Reading a stable live traffic window.",BUILD_CONTEXT:"Selecting policy, memory, evidence, and docs.",PROPOSE:"The architect is forming a testable hypothesis.",VALIDATE:"Checking the proposal against hard policy.",PREPARE_REPLAY:"Freezing an immutable traffic trace.",RUN_TRIALS:"Running paired incumbent and candidate trials.",EVALUATE:"Applying deterministic safety and value gates.",PROMOTE:"Publishing the proven configuration.",REJECT:"Keeping the incumbent because proof was insufficient.",VERIFY_LIVE:"Watching the promoted version for regression.",LEARN:"Writing an evidence-linked lesson.",CHECKPOINT:"Compacting progress for the next cycle."};
+const esc = value => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const money = n => n == null ? "—" : `$${Number(n).toFixed(2)}/hr`;
+const fmtTime = ts => new Date(ts*1000).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit",second:"2-digit"});
 
-function renderArch(a) {
-  if (!a) return "<div class='sub'>no live setup yet</div>";
-  const pools = Object.entries(a.pools).sort().map(([n,p]) =>
-    `<div class="pool"><b>${esc(n)}${a.split_threshold_tokens && n==="long" ? ` (≥${a.split_threshold_tokens} tok)` : ""}${a.split_threshold_tokens && n==="short" ? ` (&lt;${a.split_threshold_tokens} tok)` : ""}</b>` +
-    Array.from({length:p.replicas}, () => `<span class="gpu ${p.gpu}">${p.gpu.toUpperCase()}</span>`).join("") + "</div>").join("");
-  const cost = Object.values(a.pools).reduce((s,p) => s + p.replicas * (p.gpu==="t4" ? 0.5 : 3), 0);
-  return `<div class="sub">v${a.version} · by ${esc(a.created_by)} · $${cost.toFixed(2)}/hr</div>
-          <div class="pools ${a.version!==lastVersion && lastVersion!==null ? "flash":""}">${pools}</div>
-          <div class="sub">${esc(a.reason)}</div>`;
+function renderStages(stage) {
+  const effective = stage === "REJECT" ? "EVALUATE" : stage;
+  const active = Math.max(0, STAGES.indexOf(effective));
+  document.getElementById("stageRail").innerHTML = STAGES.map((name,index) =>
+    `<div class="stage ${index < active ? "done" : ""} ${index === active ? "active" : ""}">${esc(LABELS[name])}</div>`).join("");
 }
 
-function renderChart(series, slo) {
-  const svg = document.getElementById("chart");
-  if (!series.length) { svg.innerHTML = ""; return; }
-  const max = Math.max(slo * 1.5, ...series.map(s => s.p95));
-  const x = i => series.length === 1 ? 150 : i * 300 / (series.length - 1);
-  const y = v => 88 - v / max * 84;
-  const pts = series.map((s,i) => `${x(i)},${y(s.p95)}`).join(" ");
-  svg.innerHTML = `<line x1="0" x2="300" y1="${y(slo)}" y2="${y(slo)}" stroke="#d29922" stroke-dasharray="4 3" vector-effect="non-scaling-stroke"/>
-    <polyline points="${pts}" fill="none" stroke="#58a6ff" stroke-width="2" vector-effect="non-scaling-stroke"/>`;
+function renderArch(target, arch, label) {
+  const el = document.getElementById(target);
+  if (!arch) { el.innerHTML = `<small>${esc(label)}</small><div class="empty">Not proposed yet.</div>`; return; }
+  const cost = Object.values(arch.pools || {}).reduce((sum,p) => sum + p.replicas * (p.gpu === "a100" ? 3 : .5), 0);
+  const pools = Object.entries(arch.pools || {}).flatMap(([name,pool]) =>
+    Array.from({length:pool.replicas}, () => `<span class="gpu ${esc(pool.gpu)}">${esc(name)} · ${esc(pool.gpu.toUpperCase())}</span>`)).join("");
+  el.innerHTML = `<small>${esc(label)}</small><span class="cost">${money(cost)}</span><div class="pool-row">${pools}</div>` +
+    `<div>${arch.split_threshold_tokens ? `Split at ${esc(arch.split_threshold_tokens)} tokens` : "Shared inference pool"}</div>` +
+    (arch.reason ? `<p style="color:var(--muted);font-size:12px;margin-bottom:0">${esc(arch.reason)}</p>` : "");
 }
 
-function renderHorizon(h) {
-  if (!h) return "<div class='sub'>long-horizon state is not available</div>";
-  const campaign = h.campaign;
-  const status = `<div class="memory-block"><div class="memory-title">Campaign</div>` +
-    `<div class="memory-pills">` +
-    `<span class="pill">stage: ${esc(h.stage ?? "—")}</span>` +
-    `<span class="pill">revision: ${esc(h.revision ?? "—")}</span>` +
-    `<span class="pill">budget left: ${esc(h.budget_remaining ?? "—")}</span></div>` +
-    (campaign?.goal ? `<div class="sub">${esc(campaign.goal)}</div>` : "") + `</div>`;
+function renderEvidence(manifest) {
+  const target = document.getElementById("evidenceList");
+  if (!manifest?.items?.length) { target.innerHTML = `<div class="empty">No context packet compiled yet.</div>`; return; }
+  target.innerHTML = manifest.items.map((item,index) => `<div class="evidence">
+    <div class="icon">${index+1}</div><div class="type">${esc(item.memory_type)}</div>
+    <div><h3>${esc(item.title)}</h3><p>${esc(item.detail)}</p></div><div class="tokens">${esc(item.tokens)} tok</div>
+  </div>`).join("");
+}
 
-  const context = h.context_manifest
-    ? `<div class="memory-block"><div class="memory-title">Latest context packet · ${esc(h.context_manifest.token_count ?? 0)} tokens` +
-      `${h.context_manifest.token_budget ? ` / ${esc(h.context_manifest.token_budget)}` : ""}</div>` +
-      `<div class="sub">Manifest ${esc(h.context_manifest.manifest_id ?? "—")}</div>` +
-      `<div class="sub memory-ids">Included: ${h.context_manifest.included_ids.length ? h.context_manifest.included_ids.map(esc).join(", ") : "none"}</div></div>`
-    : `<div class="memory-block"><div class="memory-title">Latest context packet</div><div class="sub">none recorded</div></div>`;
+function renderTrials(trials) {
+  const rows = document.getElementById("trialRows");
+  if (!trials?.length) { rows.innerHTML = `<tr><td colspan="6" class="empty">No trials recorded yet.</td></tr>`; return; }
+  rows.innerHTML = trials.map(t => `<tr><td class="${t.role === "candidate" ? "candidate" : ""}">${esc(t.role)}</td>`+
+    `<td>${Number(t.repeat)+1}</td><td>${esc(t.n)}</td><td>${Math.round(t.p95_ms)} ms</td><td>${esc(t.errors)}</td><td>${money(t.usd_hr)}</td></tr>`).join("");
+}
 
-  const replay = h.replay
-    ? `<div class="sub">Replay: ${esc(h.replay.replay_id ?? "—")} · hash ${esc((h.replay.content_hash ?? "").slice(0, 16) || "—")}</div>`
-    : `<div class="sub">No replay recorded</div>`;
-  const trial = h.latest_trial;
-  const trialText = trial
-    ? `${esc(trial.role ?? "trial")} · repeat ${esc(trial.repeat ?? "—")} · ${esc(trial.n ?? 0)} requests · p95 ${esc(trial.p95_ms ?? "—")} ms · errors ${esc(trial.errors ?? 0)}`
-    : "No trial recorded";
-  const ev = h.latest_evaluation;
-  const gates = (ev?.gates ?? []).map(g => `<span class="gate ${g.passed ? "pass" : "fail"}">${g.passed ? "✓" : "✕"} ${esc(g.name)}: ${esc(g.detail ?? "")}</span>`).join("");
-  const experiment = `<div class="memory-block"><div class="memory-title">Latest experiment</div>${replay}` +
-    `<div class="sub">${trialText}</div>` +
-    (ev ? `<div class="sub">Evaluation: ${esc(ev.decision ?? "—")}</div>${gates || "<div class='sub'>No gate details</div>"}` : `<div class="sub">No evaluation recorded</div>`) + `</div>`;
+function renderEvaluation(evaluation) {
+  const list = document.getElementById("gateList"), decision = document.getElementById("decision");
+  if (!evaluation) { list.innerHTML = `<div class="empty">Evaluation begins after every paired repeat completes.</div>`; decision.className="decision"; decision.innerHTML="<b>Pending proof.</b> The live architecture remains unchanged."; return; }
+  list.innerHTML = (evaluation.gates || []).map(g => `<div class="gate ${g.passed ? "pass" : "fail"}"><span class="gate-mark">${g.passed ? "✓" : "×"}</span><b>${esc(g.name.replaceAll("_"," "))}</b><span>${esc(g.detail)}</span></div>`).join("");
+  const promoted = evaluation.decision === "promote";
+  decision.className = `decision ${promoted ? "promote" : "reject"}`;
+  decision.innerHTML = `<b>${promoted ? "Evidence supports promotion." : "Incumbent retained."}</b> ${esc((evaluation.reasons || []).join(" "))}`;
+}
 
-  const events = h.verification_events ?? [];
-  const checks = events.length ? events.map(e => `<div class="sub"><b>${esc(e.kind)}</b> · ${esc(e.msg)}${e.ts ? ` <span>${fmt(e.ts)}</span>` : ""}</div>`).join("")
-    : `<div class="sub">No verification or rollback events</div>`;
-  return status + context + experiment + `<div class="memory-block"><div class="memory-title">Verification and rollback</div>${checks}</div>`;
+function renderLog(events) {
+  document.getElementById("log").innerHTML = (events || []).map(e => `<div class="event"><time>${fmtTime(e.ts)}</time><span class="kind">${esc(e.kind)}</span><div>${esc(e.msg)}</div></div>`).join("");
 }
 
 async function tick() {
   try {
-    const s = await (await fetch("/api/state")).json();
-    document.getElementById("phase").textContent = "traffic: " + (s.phase?.name ?? "—");
-    const last = s.series.at(-1);
-    const p = document.getElementById("p95now");
-    p.textContent = "p95: " + (last ? (last.p95/1000).toFixed(1) + "s" : "—");
-    p.style.color = last && last.p95 > s.slo_ms ? "var(--bad)" : "var(--good)";
-    document.getElementById("exps").textContent = "experiments: " + s.experiments;
-    document.getElementById("log").innerHTML = s.events.map(e =>
-      `<div class="ev k-${esc(e.kind)}"><time>${fmt(e.ts)}</time><span class="tag">${esc(e.kind)}</span><div>${esc(e.msg)}` +
-      (e.candidates ? `<div class="sub">${e.candidates.map(c => "• " + esc(c.summary ?? c) + (c.reason ? " — " + esc(c.reason) : "")).join("<br>")}</div>` : "") +
-      (e.lessons && e.lessons.length ? `<div class="sub">${e.lessons.map(l => "↳ " + esc(l.text)).join("<br>")}</div>` : "") +
-      `</div></div>`).join("");
-    document.getElementById("arch").innerHTML = renderArch(s.live);
-    document.getElementById("horizon").innerHTML = renderHorizon(s.long_horizon);
-    lastVersion = s.live?.version ?? lastVersion;
-    renderChart(s.series, s.slo_ms);
-    document.getElementById("lessons").innerHTML = s.lessons.length ? s.lessons.map(l =>
-      `<div class="lesson">${esc(l.text)}<div class="conf">confirmed ${l.confirmed ?? 0}× · contradicted ${l.contradicted ?? 0}×</div></div>`).join("")
-      : "<div class='sub'>none yet</div>";
-  } catch (e) { console.log(e); }
+    const state = await (await fetch("/api/state")).json();
+    const h = state.long_horizon || {}, stage = h.stage || "OBSERVE";
+    document.getElementById("stageName").textContent = LABELS[stage] || stage;
+    document.getElementById("stageSummary").textContent = SUMMARIES[stage] || "Continuing the campaign.";
+    document.getElementById("runtime").textContent = `${h.runtime?.model || "deterministic fallback"} via ${h.runtime?.provider || "offline"} · ${h.runtime?.database || "memory"}`;
+    document.getElementById("revision").textContent = `campaign revision ${h.revision ?? "—"} · ${h.budget_remaining ?? "—"} experiments left`;
+    renderStages(stage);
+
+    const latest = state.series?.at(-1), p95 = latest?.p95 ?? h.observation?.metrics?.p95_ms;
+    const p95El = document.getElementById("p95");
+    p95El.textContent = p95 == null ? "—" : `${(p95/1000).toFixed(1)}s`;
+    p95El.className = `signal-number ${p95 != null && p95 > state.slo_ms ? "bad" : "good"}`;
+    document.getElementById("slo").textContent = `${(state.slo_ms/1000).toFixed(1)}s`;
+    document.getElementById("observationCopy").textContent = h.observation ?
+      `A stable ${h.observation.metrics?.rps ?? "—"} rps window triggered this campaign. The agent classified the workload before considering any change.` :
+      "Waiting for enough stable live traffic to characterize the workload.";
+    document.getElementById("signalMeta").innerHTML = [
+      `traffic · ${state.phase?.name || "waiting"}`, `requests · ${h.observation?.metrics?.n ?? "—"}`,
+      `errors · ${h.observation?.metrics?.errors ?? "—"}`, `live architecture · v${state.live?.version ?? "—"}`
+    ].map(x => `<span class="token">${esc(x)}</span>`).join("");
+
+    const manifest = h.context_manifest;
+    document.getElementById("contextCopy").textContent = manifest ?
+      `${manifest.token_count} of ${manifest.token_budget} available tokens were selected. ${manifest.excluded_count || 0} lower-priority memories were left out.` :
+      "Policy, campaign state, current measurements, prior experiments, learned lessons, and serving documentation are selected under a strict token budget.";
+    document.getElementById("knowledgeMeta").innerHTML = [
+      `${h.knowledge?.chunks ?? 0} documentation chunks`, `${h.knowledge?.sources?.length ?? 0}/${h.knowledge?.configured_sources ?? 0} sources ingested`,
+      `${manifest?.items?.length ?? 0} memories selected`
+    ].map(x => `<span class="token live">${esc(x)}</span>`).join("");
+    renderEvidence(manifest);
+
+    const proposal = h.proposal, experiment = h.experiment || {};
+    document.getElementById("hypothesis").textContent = proposal?.hypothesis || "No proposal yet. The agent is still observing.";
+    const run = experiment.architect_run || h.campaign?.checkpoint?.architect_run || {};
+    const sourceLabel = run.source === "openrouter" ? `LLM proposal · ${run.model}` : run.source === "fallback" ? "Validated deterministic fallback" : "Waiting for architect";
+    document.getElementById("architectMeta").innerHTML = `<span class="token ${run.source === "openrouter" ? "good" : ""}">${esc(sourceLabel)}</span>` +
+      (run.attempts ? `<span class="token">structured attempts · ${esc(run.attempts)}</span>` : "") +
+      (h.impact?.potential_savings_pct != null ? `<span class="token good">expected GPU savings · ${esc(h.impact.potential_savings_pct)}%</span>` : "");
+    renderArch("incumbentArch", h.observation?.architecture || state.live, "Proven incumbent");
+    renderArch("candidateArch", proposal?.candidate, "Candidate under test");
+    document.getElementById("protocol").innerHTML = proposal ? [
+      `${proposal.test_plan?.repeats || 3} paired repeats`, `${proposal.test_plan?.min_requests || 30}+ requests each`,
+      "serial execution", "automatic rollback"
+    ].map(x => `<span>${esc(x)}</span>`).join("") : "";
+
+    document.getElementById("replayCopy").textContent = h.replay ?
+      `Replay ${h.replay.replay_id} is locked to content hash ${(h.replay.content_hash || "").slice(0,16)}. Completed trials are reused after a restart.` :
+      "A content-hashed replay removes traffic luck from the comparison. Trials run serially and alternate order.";
+    renderTrials(h.trials);
+    renderEvaluation(h.latest_evaluation);
+    document.getElementById("lesson").innerHTML = h.lesson ? `<small>Long-term memory · ${esc(h.lesson.lesson_id || "lesson")}</small><p>${esc(h.lesson.claim || h.lesson.text)}</p>` : `<small>Long-term memory</small><p>No lesson written yet.</p>`;
+    renderLog(state.events);
+  } catch (error) {
+    document.getElementById("runtime").textContent = "waiting for the local agent";
+  }
 }
-setInterval(tick, 1000); tick();
+
+setInterval(tick, 1200); tick();
 </script>
 </body>
 </html>

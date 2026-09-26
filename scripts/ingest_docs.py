@@ -7,8 +7,14 @@ def main() -> int:
     if not config.DOC_SOURCES:
         print("DOC_SOURCES is empty; nothing to ingest")
         return 0
-    records = DocumentIngestor(db.db().docs).ingest(config.DOC_SOURCES)
-    print(f"ingested {len(records)} documentation chunks")
+    ingestor = DocumentIngestor(db.db().docs)
+    records = ingestor.ingest(config.DOC_SOURCES)
+    embedded = sum(1 for record in records if record.get("embedding"))
+    print(f"ingested {len(records)} documentation chunks ({embedded} embedded)")
+    for failure in ingestor.errors:
+        print(f"source skipped: {failure['source']}: {failure['error']}")
+    if ingestor.embedding_errors:
+        print(f"embedding batches skipped: {len(ingestor.embedding_errors)}")
     return len(records)
 
 

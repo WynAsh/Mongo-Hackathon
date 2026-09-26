@@ -226,15 +226,18 @@ class DurableOptimizationWorkflow:
                     "incumbent_version": incumbent.version,
                     "regime_vector": checkpoint["observation"]["regime_vector"],
                     "regime_hash": checkpoint["regime_hash"], "created_at": self.clock(),
-                    "evidence_ids": proposal.evidence_ids}}, upsert=True)
+                    "evidence_ids": proposal.evidence_ids,
+                    "architect_run": getattr(self.architect, "last_run", {})}}, upsert=True)
         self.store.debit_budget(self.campaign_id, idempotency)
         self.database.experiments.update_one(
             {"experiment_id": experiment_id}, {"$set": {"budget_debited": True}})
         checkpoint.update({"experiment_id": experiment_id, "proposal": proposal.model_dump()})
+        architect_run = existing.get("architect_run", {}) if existing else getattr(self.architect, "last_run", {})
+        checkpoint["architect_run"] = architect_run
         self._event("propose", proposal.hypothesis, experiment_id=experiment_id,
                     candidates=[{"summary": proposal.candidate.summary(),
                                  "reason": proposal.candidate.reason}],
-                    evidence_ids=proposal.evidence_ids)
+                    evidence_ids=proposal.evidence_ids, architect_run=architect_run)
         # debit_budget changes the document without changing its revision.
         current = self.store.get(self.campaign_id)
         self._transition(current, token, CampaignStage.VALIDATE, checkpoint,

@@ -31,6 +31,15 @@ def main():
 
     setup_db.main(a.reset or a.wipe_memory, a.wipe_memory)
 
+    if config.DOC_SOURCES:
+        from docs.ingest import DocumentIngestor
+        ingestor = DocumentIngestor(db.db().docs)
+        chunks = ingestor.ingest(config.DOC_SOURCES)
+        print(f"docs: {len(chunks)} chunks from {len(config.DOC_SOURCES) - len(ingestor.errors)} "
+              f"of {len(config.DOC_SOURCES)} configured sources", flush=True)
+        for failure in ingestor.errors:
+            print(f"[docs] skipped {failure['source']}: {failure['error']}", flush=True)
+
     from agent import loop
     from gateway.app import app as gateway_app
     from infra import reconciler

@@ -34,17 +34,21 @@ class MemoryCurator:
                 model_id=config.AGENT_MODEL,
                 params={"temperature": 0, "max_tokens": 500},
             )
-            agent = Agent(
-                model=model,
-                system_prompt=("Compact a terminal infrastructure experiment into one scoped claim and "
-                               "a short summary. Do not invent evidence or identifiers."),
-                structured_output_model=CuratedMemory,
-                callback_handler=None,
-            )
-
             def invoke(payload: dict) -> dict:
-                result = agent.structured_output(CuratedMemory, repr(payload))
-                return result.model_dump()
+                # Invocation-scoped agent: the durable evidence record is the
+                # only memory, so compaction never accumulates chat history.
+                agent = Agent(
+                    model=model,
+                    system_prompt=(
+                        "Compact a terminal infrastructure experiment into one scoped claim and "
+                        "a short summary. Do not invent evidence or identifiers."
+                    ),
+                    callback_handler=None,
+                )
+                result = agent(repr(payload), structured_output_model=CuratedMemory)
+                if result.structured_output is None:
+                    raise ValueError("memory curator returned no structured output")
+                return result.structured_output.model_dump()
 
             return invoke
         except Exception:

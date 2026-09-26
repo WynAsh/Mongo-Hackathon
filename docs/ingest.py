@@ -88,38 +88,55 @@ class DocumentIngestor:
         self.overlap_tokens = max(0, min(overlap_tokens, self.target_tokens - 1))
         self.client = client
         self.timeout = timeout
+        self.errors: list[dict[str, str]] = []
+        self.embedding_errors: list[dict[str, str]] = []
 
     def ingest(self, sources: Iterable[str | Path]) -> list[dict]:
         records = []
         for source in sources:
             source_id = str(source)
-            if source_id.startswith(("https://", "http://")):
-                content, title, sections = self._fetch(source_id)
-            else:
-                path = Path(source)
-                content = path.read_text(encoding="utf-8")
-                source_id = str(path.resolve())
-                if path.suffix.lower() in {".html", ".htm"}:
-                    title, sections = _html_sections(content)
+            try:
+                if source_id.startswith(("https://", "http://")):
+                    content, title, sections = self._fetch(source_id)
                 else:
-                    title, sections = _text_sections(content)
+                    path = Path(source)
+                    content = path.read_text(encoding="utf-8")
+                    source_id = str(path.resolve())
+                    if path.suffix.lower() in {".html", ".htm"}:
+                        title, sections = _html_sections(content)
+                    else:
+                        title, sections = _text_sections(content)
+            except Exception as exc:
+                self.errors.append({"source": source_id, "error": str(exc)})
+                continue
             source_hash = hashlib.sha256(content.encode("utf-8")).hexdigest()
             # A changed source replaces only its own obsolete chunks. Other
             # sources and older experiment evidence remain untouched.
             self.collection.delete_many({"source": source_id, "source_hash": {"$ne": source_hash}})
             chunks = _chunks(sections, self.target_tokens, self.overlap_tokens)
-            vectors = None
-            try:
-                vectors = self.embedder.embed([text for _, text in chunks]) if chunks else []
-            except Exception:
-                vectors = None
+            digests = [hashlib.sha256(
+                f"{source_id}\0{index}\0{heading}\0{text}".encode("utf-8")
+            ).hexdigest() for index, (heading, text) in enumerate(chunks)]
+            existing = {row["content_hash"]: row.get("embedding") for row in self.collection.find(
+                {"content_hash": {"$in": digests}}, {"content_hash": 1, "embedding": 1})}
+            vectors: list[list[float] | None] = [existing.get(digest) for digest in digests]
+            # Keep one provider/rate-limit failure from discarding every vector
+            # for a large documentation page.
+            missing = [index for index, vector in enumerate(vectors) if vector is None]
+            for start in range(0, len(missing), 24):
+                indexes = missing[start:start + 24]
+                batch = [chunks[index][1] for index in indexes]
+                try:
+                    embedded = self.embedder.embed(batch) or []
+                    for offset, vector in enumerate(embedded):
+                        vectors[indexes[offset]] = vector
+                except Exception as exc:
+                    self.embedding_errors.append({"source": source_id, "error": str(exc)})
             for index, (heading, text) in enumerate(chunks):
                 # Repeated prose can legitimately produce identical chunks.
                 # Include the stable chunk position so each source location has
                 # its own address while repeated ingestion remains idempotent.
-                digest = hashlib.sha256(
-                    f"{source_id}\0{index}\0{heading}\0{text}".encode("utf-8")
-                ).hexdigest()
+                digest = digests[index]
                 record = {
                     "doc_id": digest,
                     "source": source_id,
@@ -131,7 +148,7 @@ class DocumentIngestor:
                     "text": text,
                     "token_estimate": approximate_tokens(text),
                 }
-                if vectors and index < len(vectors):
+                if index < len(vectors) and vectors[index] is not None:
                     record["embedding"] = vectors[index]
                 self.collection.update_one({"content_hash": digest}, {"$set": record}, upsert=True)
                 records.append(record)
@@ -145,7 +162,7 @@ class DocumentIngestor:
             response = client.get(url)
             response.raise_for_status()
             content = response.text
-            parsed = urlparse(response.url)
+            parsed = urlparse(str(response.url))
             if parsed.scheme not in {"http", "https"}:
                 raise ValueError("documentation URL must use HTTP or HTTPS")
             title, sections = _html_sections(content)

@@ -4,6 +4,8 @@
 
 An agent that watches live LLM-serving traffic, proposes changes to the *whole serving architecture* (pool layout, GPU types, replica counts), **shadow-tests every change on identical persisted traffic** before touching production, promotes only proven winners, and **remembers which setups won under which traffic** in MongoDB Atlas. Campaigns survive restarts without replaying an ever-growing chat transcript.
 
+The product goal is continuous, evidence-based optimization: find the lowest GPU cost that still satisfies latency and error SLOs as traffic changes. Live traffic is used to detect and characterize an opportunity; an immutable copy of that traffic is used for safe shadow proof; live traffic then verifies a promoted change and triggers automatic rollback if it regresses.
+
 > Built entirely during the MongoDB Harness Engineering hackathon (Sep 26, 2026). One of us has built an inference router before; nothing from that repo is used here. The gateway is deliberately simple. All the intelligence is in the agent.
 
 ## Architecture (layers)
@@ -52,7 +54,7 @@ Each Strands invocation is stateless. The context compiler fits policy, the camp
 python -m venv .venv
 # Windows: .venv\Scripts\python -m pip install -r requirements-dev.txt
 # macOS/Linux: .venv/bin/python -m pip install -r requirements-dev.txt
-cp .env.example .env        # set MONGO_URI (Atlas sandbox) and OPENROUTER_API_KEY
+cp .env.example .env        # set OPENROUTER_API_KEY and other local options
 
 # offline, no Docker, no Atlas: in-memory Mongo + fake sims + heuristic proposer
 MONGO_URI=mock SIM_MODE=fake python -m scripts.run_all --phase-s 60
@@ -66,6 +68,9 @@ python -m scripts.ingest_docs
 ```
 
 `DOC_SOURCES` accepts comma-separated local Markdown/text paths or curated HTTP(S) URLs.
+If it is blank, Harness uses the curated vLLM engine/scaling references and llm-d routing, baseline, P/D-disaggregation, and autoscaling guides shown in `.env.example`. `scripts.run_all` ingests them automatically and keeps unchanged embeddings.
+
+For Atlas, either put `MONGODB_URI=...` in a local `atlas-credentials.env` file (already git-ignored), or set `MONGO_URI=...` in `.env`. `MONGODB_URI` takes precedence. Harness creates its collections and indexes additively; on Atlas tiers with a search-index limit, retrieval falls back to deterministic lexical ranking for any index the tier cannot create.
 
 Against Atlas with real llm-d sims:
 
