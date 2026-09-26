@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kubernetes-sigs/gateway-api/blob/v1.5.0/config/crd/standard/gateway.networking.k8s.io_gateways.yaml#v1-Gateway-spec-fields-used-by-this-renderer",
+  "title": "Gateway API v1.5.0 Gateway field projection",
+  "description": "Field projection for the v1 Gateway resource used in this bundle, from the pinned Gateway API v1.5.0 standard CRD. The data-plane controller and installed CRD remain prerequisites.",
+  "type": "object",
+  "properties": {
+    "apiVersion": {"const": "gateway.networking.k8s.io/v1"},
+    "kind": {"const": "Gateway"},
+    "metadata": {"type": "object", "properties": {"name": {"type": "string"}, "namespace": {"type": "string"}}},
+    "spec": {
+      "type": "object",
+      "properties": {
+        "gatewayClassName": {"type": "string", "minLength": 1},
+        "listeners": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {"type": "string", "minLength": 1, "maxLength": 253},
+              "port": {"type": "integer", "minimum": 1, "maximum": 65535},
+              "protocol": {"type": "string", "enum": ["HTTP", "HTTPS", "TLS", "TCP", "UDP"]},
+              "allowedRoutes": {"type": "object", "properties": {"namespaces": {"type": "object", "properties": {"from": {"type": "string", "enum": ["All", "Same", "Selector"]}}}}}
+            },
+            "required": ["name", "port", "protocol"]
+          },
+          "minItems": 1
+        }
+      },
+      "required": ["gatewayClassName", "listeners"]
+    }
+  },
+  "required": ["apiVersion", "kind", "metadata", "spec"]
+}

@@ -24,6 +24,10 @@ def main(reset: bool, wipe_memory: bool):
             "context_manifests",
         ]
         learned = ["regimes", "experiments", "lessons", "summaries", "docs", "policies"]
+        operational += ["production_tasks", "production_checkpoints", "production_contexts",
+                        "production_environments", "production_bundles", "production_evidence",
+                        "production_verifications"]
+        learned += ["production_lessons"]
         for c in operational + (learned if wipe_memory else []):
             if c in names:
                 d[c].drop()
@@ -59,6 +63,23 @@ def main(reset: bool, wipe_memory: bool):
     d.context_manifests.create_index([("campaign_id", 1), ("created_at", -1)])
     d.docs.create_index("content_hash", unique=True)
     d.docs.create_index([("source", 1), ("chunk_index", 1)])
+    # Production planning state is separate from the simulator and uses ordinary
+    # collections so leases, checkpoints, and immutable evidence remain usable
+    # on both Atlas and the offline mongomock demo.
+    d.production_tasks.create_index("task_id", unique=True)
+    d.production_tasks.create_index("idempotency", unique=True)
+    d.production_tasks.create_index([("status", 1), ("priority", 1), ("next_run_at", 1)])
+    d.production_checkpoints.create_index([("task_id", 1), ("revision", 1)], unique=True)
+    d.production_contexts.create_index("manifest_id", unique=True)
+    d.production_environments.create_index("revision")
+    d.production_bundles.create_index("bundle_id", unique=True)
+    d.production_evidence.create_index("evidence_id", unique=True)
+    d.production_evidence.create_index([("environment_id", 1), ("plan_revision", 1),
+                                        ("observed_at", -1)])
+    d.production_lessons.create_index("lesson_id", unique=True)
+    d.production_lessons.create_index([("environment_id", 1), ("recipe_id", 1),
+                                       ("model_revision", 1), ("created_at", -1)])
+    d.production_verifications.create_index("verification_id", unique=True)
     ensure_campaign_indexes(d)
 
     if not db.is_mock():

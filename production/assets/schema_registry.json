@@ -1,0 +1,33 @@
+{
+  "description": "Pinned upstream CRD schema field projections used for deterministic offline validation. They validate every field emitted by this renderer, but do not replace API-server admission or validate fields the renderer does not emit.",
+  "schemas": {
+    "kserve-llmd-vllm": {
+      "kind": "LLMInferenceService",
+      "api_version": "serving.kserve.io/v1alpha2",
+      "upstream": "https://github.com/kserve/kserve/blob/v0.20.0/config/crd/full/llmisvc/serving.kserve.io_llminferenceservices.yaml",
+      "schema_file": "kserve-llmisvc-v0.20.0.schema.json",
+      "schema_version": "KServe v0.20.0 v1alpha2"
+    },
+    "dynamo-vllm": {
+      "kind": "DynamoGraphDeployment",
+      "api_version": "nvidia.com/v1beta1",
+      "upstream": "https://github.com/ai-dynamo/dynamo/blob/v1.5.0/deploy/operator/config/crd/bases/nvidia.com_dynamographdeployments.yaml",
+      "schema_file": "dynamo-dgd-v1.5.0.schema.json",
+      "schema_version": "Dynamo v1.5.0 v1beta1"
+    },
+    "dynamo-sglang": {
+      "kind": "DynamoGraphDeployment",
+      "api_version": "nvidia.com/v1beta1",
+      "upstream": "https://github.com/ai-dynamo/dynamo/blob/v1.5.0/deploy/operator/config/crd/bases/nvidia.com_dynamographdeployments.yaml",
+      "schema_file": "dynamo-dgd-v1.5.0.schema.json",
+      "schema_version": "Dynamo v1.5.0 v1beta1"
+    },
+    "gateway-api-v1.5.0": {
+      "kind": "Gateway",
+      "api_version": "gateway.networking.k8s.io/v1",
+      "upstream": "https://github.com/kubernetes-sigs/gateway-api/blob/v1.5.0/config/crd/standard/gateway.networking.k8s.io_gateways.yaml",
+      "schema_file": "gateway-api-v1.5.0-gateway.schema.json",
+      "schema_version": "Gateway API v1.5.0 v1"
+    }
+  }
+}

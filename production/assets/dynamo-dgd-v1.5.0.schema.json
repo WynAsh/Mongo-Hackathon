@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ai-dynamo/dynamo/blob/v1.5.0/deploy/operator/config/crd/bases/nvidia.com_dynamographdeployments.yaml#v1beta1-openAPIV3Schema-fields-used-by-this-renderer",
+  "title": "Dynamo v1.5.0 DynamoGraphDeployment field projection",
+  "description": "Renderer field projection from the v1beta1 DynamoGraphDeployment CRD shipped in the pinned Dynamo v1.5.0 release. The v1beta1 API uses spec.components (a list), not the legacy v1alpha1 spec.services map. Checks every DGD field emitted by this renderer; API-server admission remains authoritative.",
+  "type": "object",
+  "properties": {
+    "apiVersion": {"const": "nvidia.com/v1beta1"},
+    "kind": {"const": "DynamoGraphDeployment"},
+    "metadata": {"type": "object", "properties": {"name": {"type": "string"}, "namespace": {"type": "string"}}},
+    "spec": {
+      "type": "object",
+      "properties": {
+        "backendFramework": {"type": "string", "enum": ["sglang", "vllm", "trtllm"]},
+        "components": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {"type": "string", "minLength": 1, "maxLength": 63},
+              "type": {"type": "string", "enum": ["frontend", "worker", "prefill", "decode", "planner", "epp"]},
+              "replicas": {"type": "integer", "minimum": 0},
+              "podTemplate": {
+                "type": "object",
+                "properties": {
+                  "spec": {
+                    "type": "object",
+                    "properties": {
+                      "containers": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "name": {"type": "string"},
+                            "image": {"type": "string", "minLength": 1},
+                            "command": {"type": "array", "items": {"type": "string"}},
+                            "args": {"type": "array", "items": {"type": "string"}},
+                            "envFrom": {"type": "array", "items": {"type": "object", "properties": {"secretRef": {"type": "object", "properties": {"name": {"type": "string"}}}}}},
+                            "resources": {
+                              "type": "object",
+                              "properties": {
+                                "limits": {"type": "object", "properties": {"nvidia.com/gpu": {"type": "string"}}},
+                                "requests": {"type": "object", "properties": {"nvidia.com/gpu": {"type": "string"}}}
+                              }
+                            }
+                          },
+                          "required": ["name", "image"]
+                        }
+                      }
+                    }
+                  }
+                },
+                "required": ["spec"]
+              }
+            },
+            "required": ["name", "type", "podTemplate"]
+          },
+          "minItems": 1,
+          "maxItems": 25
+        }
+      },
+      "required": ["components", "backendFramework"]
+    }
+  },
+  "required": ["apiVersion", "kind", "metadata", "spec"]
+}

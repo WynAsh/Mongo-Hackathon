@@ -46,6 +46,12 @@ DEFAULT_DOC_SOURCES = (
     "https://llm-d.ai/docs/well-lit-paths/foundations/optimized-baseline",
     "https://llm-d.ai/docs/well-lit-paths/foundations/pd-disaggregation",
     "https://llm-d.ai/docs/well-lit-paths/foundations/workload-autoscaling",
+    "https://kserve.github.io/website/docs/model-serving/generative-inference/llmisvc/overview",
+    "https://kserve.github.io/website/docs/model-serving/generative-inference/llmisvc/llmisvc-envoy-ai-gateway",
+    "https://docs.nvidia.com/dynamo/dev/kubernetes/model-deployment/deploy-with-dgd",
+    "https://docs.vllm.ai/en/latest/deployment/integrations/dynamo/",
+    "https://docs.sglang.ai/advanced_features/server_arguments.html",
+    "https://aigateway.envoyproxy.io/docs/",
 )
 _DOC_SOURCES_VALUE = os.getenv("DOC_SOURCES", "").strip() or ",".join(DEFAULT_DOC_SOURCES)
 DOC_SOURCES = tuple(source.strip() for source in _DOC_SOURCES_VALUE.split(",") if source.strip())

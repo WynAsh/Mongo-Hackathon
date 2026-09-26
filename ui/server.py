@@ -12,6 +12,8 @@ from fastapi.responses import FileResponse
 from common import config, db
 
 app = FastAPI()
+from production.api import install
+install(app)
 HERE = Path(__file__).parent
 
 
@@ -170,7 +172,13 @@ def _long_horizon_state(database, events):
 
 
 @app.get("/")
+@app.get("/production")
 def index():
+    return FileResponse(HERE / "production.html")
+
+
+@app.get("/simulation")
+def simulation():
     return FileResponse(HERE / "index.html")
 
 
@@ -201,4 +209,4 @@ def state():
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=config.UI_PORT, log_level="warning")
+    uvicorn.run(app, host="127.0.0.1", port=config.UI_PORT, log_level="warning")

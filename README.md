@@ -1,24 +1,23 @@
 # Harness Architect
 
-**Teams running open-source models control every part of their serving stack but don't have time to tune it. Our agent does it for them.**
+**An infrastructure engineer for teams that own NVIDIA hardware and need an open-source inference platform.**
 
-An agent that watches live LLM-serving traffic, proposes changes to the *whole serving architecture* (pool layout, GPU types, replica counts), **shadow-tests every change on identical persisted traffic** before touching production, promotes only proven winners, and **remembers which setups won under which traffic** in MongoDB Atlas. Campaigns survive restarts without replaying an ever-growing chat transcript.
+Harness turns a workload description and hardware inventory into an evidence-backed serving plan. It selects a compatible open model and stack, renders Kubernetes resources, engine configuration, environment templates, ordered commands, validation findings, and rollback instructions. Imported metrics, Kubernetes events, and logs can then drive performance changes or reliability fixes.
 
-The product goal is continuous, evidence-based optimization: find the lowest GPU cost that still satisfies latency and error SLOs as traffic changes. Live traffic is used to detect and characterize an opportunity; an immutable copy of that traffic is used for safe shadow proof; live traffic then verifies a promoted change and triggers automatic rollback if it regresses.
+The production workflow generates and validates artifacts; it never runs the commands or changes a cluster. Results distinguish offline validation, simulated evidence, and verification imported from an externally applied bundle. The original serving simulator remains at `/simulation` as a separate evidence-loop demonstration.
 
 > Built entirely during the MongoDB Harness Engineering hackathon (Sep 26, 2026). One of us has built an inference router before; nothing from that repo is used here. The gateway is deliberately simple. All the intelligence is in the agent.
 
 ## Architecture (layers)
 
 ```
- 8  UI (ui/)            decision log + live setup diagram
- 7  Agent (agent/)      durable controller + bounded-context Strands architect
- 6  Memory (memory/)    policy -> checkpoint -> observations -> bandit -> lessons -> evidence
- 5  Shadow (infra/shadow.py)   immutable replay, paired serial trials, deterministic gates
- 4  Control plane       live Arch doc in Mongo -> change stream -> gateway + reconciler hot-swap (blue/green)
- 3  Gateway (gateway/)  OpenAI-compatible proxy: pool by prompt length, least-in-flight; logs to time-series
- 2  Traffic (traffic/)  Poisson load: quiet -> long-document surge -> quiet -> surge again
- 1  Serving (infra/)    llm-d-inference-sim containers (or infra/fakesim.py), GPU profiles t4 / a100
+ Production UI          workload + inventory -> design -> artifacts -> operations
+ Production workflow    assess -> context -> reason -> render -> validate -> publish -> learn
+ Production catalog     pinned models + three compatible OSS recipes
+ Evidence pipeline      Prometheus, Kubernetes event, and log normalization + diagnosis
+ Artifact renderer      YAML, environment templates, commands, validation, diff, rollback
+ Durable memory         Atlas tasks, checkpoints, manifests, bundles, evidence, lessons
+ Simulation             original gateway, traffic replay, promotion and rollback demo
 ```
 
 ## MongoDB Atlas is the harness's state
@@ -35,8 +34,28 @@ The product goal is continuous, evidence-based optimization: find the lowest GPU
 | `replay_plans`, `trials`, `evaluations` | immutable traffic and promotion evidence | resumable/idempotent execution |
 | `summaries`, `context_manifests` | evidence-linked compaction and exact model inputs | bounded context |
 | `docs` | heading-aware documentation chunks and provenance | semantic + lexical retrieval |
+| `production_tasks`, `production_checkpoints`, `production_contexts` | durable provisioning, optimization, and repair stages | leases, revisions, bounded model context |
+| `production_environments`, `production_bundles`, `production_evidence`, `production_lessons`, `production_verifications` | proposed plans, immutable artifacts, operational observations, and outcomes | compare-and-swap publication + evidence lineage |
 
 ## Long-horizon workflow
+
+Production planning uses a separate durable workflow:
+
+```text
+ASSESS -> CONTEXT -> REASON -> RENDER -> VALIDATE -> PUBLISH -> LEARN -> COMPLETE
+```
+
+The three initial recipes cover the six requested projects through compatible combinations:
+
+- Envoy AI Gateway + KServe `LLMInferenceService` + llm-d + vLLM.
+- NVIDIA Dynamo + vLLM.
+- NVIDIA Dynamo + SGLang.
+
+vLLM and SGLang are alternative engines. The catalog prevents combinations that are not documented together. Model quality and runtime performance remain provisional until their evaluation evidence is imported.
+
+`PUBLISH` means the validated proposal becomes the environment's current **review candidate** in Atlas. It does not apply Kubernetes resources. An operator downloads and applies the bundle outside Harness, then imports matching operational evidence before Harness can label the result runtime-verified.
+
+The original simulator workflow remains available:
 
 ```text
 OBSERVE -> BUILD_CONTEXT -> PROPOSE -> VALIDATE -> PREPARE_REPLAY
@@ -58,7 +77,8 @@ cp .env.example .env        # set OPENROUTER_API_KEY and other local options
 
 # offline, no Docker, no Atlas: in-memory Mongo + fake sims + heuristic proposer
 MONGO_URI=mock SIM_MODE=fake python -m scripts.run_all --phase-s 60
-# open http://127.0.0.1:9100
+# open http://127.0.0.1:9100 for production planning
+# open http://127.0.0.1:9100/simulation for the simulator
 ```
 
 Leave `OPENROUTER_API_KEY` empty for the deterministic heuristic proposer and lexical retrieval. With a key, Strands uses OpenRouter's OpenAI-compatible endpoint for typed proposals and the same provider for 1,536-dimensional embeddings. Optional docs can be ingested with:

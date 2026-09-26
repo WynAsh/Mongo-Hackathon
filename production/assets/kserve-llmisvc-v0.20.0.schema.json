@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kserve/kserve/blob/v0.20.0/config/crd/full/llmisvc/serving.kserve.io_llminferenceservices.yaml#v1alpha2-openAPIV3Schema-fields-used-by-this-renderer",
+  "title": "KServe v0.20.0 LLMInferenceService field projection",
+  "description": "Renderer field projection copied from the v1alpha2 OpenAPI schema in KServe v0.20.0's pinned CRD. This checks each LLMInferenceService field emitted by this renderer; it is not a replacement for Kubernetes API-server admission or the full CRD.",
+  "type": "object",
+  "properties": {
+    "apiVersion": {"const": "serving.kserve.io/v1alpha2"},
+    "kind": {"const": "LLMInferenceService"},
+    "metadata": {"type": "object", "properties": {"name": {"type": "string"}, "namespace": {"type": "string"}}},
+    "spec": {
+      "type": "object",
+      "properties": {
+        "model": {
+          "type": "object",
+          "properties": {"name": {"type": "string"}, "uri": {"type": "string"}},
+          "required": ["uri"]
+        },
+        "replicas": {"type": "integer", "minimum": 0},
+        "parallelism": {
+          "type": "object",
+          "properties": {"tensor": {"type": "integer", "minimum": 1}}
+        },
+        "router": {
+          "type": "object",
+          "properties": {
+            "gateway": {
+              "type": "object",
+              "properties": {
+                "refs": {"type": "array", "items": {"type": "object", "properties": {"group": {"type": "string"}, "kind": {"type": "string"}, "name": {"type": "string"}, "namespace": {"type": "string"}}, "required": ["group", "kind", "name"]}}
+              }
+            },
+            "route": {"type": "object"},
+            "scheduler": {"type": "object"}
+          }
+        },
+        "template": {
+          "type": "object",
+          "properties": {
+            "containers": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {"type": "string"},
+                  "image": {"type": "string"},
+                  "imagePullPolicy": {"type": "string"},
+                  "args": {"type": "array", "items": {"type": "string"}},
+                  "command": {"type": "array", "items": {"type": "string"}},
+                  "envFrom": {"type": "array", "items": {"type": "object", "properties": {"secretRef": {"type": "object", "properties": {"name": {"type": "string"}}}}}},
+                  "resources": {
+                    "type": "object",
+                    "properties": {
+                      "limits": {"type": "object", "properties": {"nvidia.com/gpu": {"type": "string"}}},
+                      "requests": {"type": "object", "properties": {"nvidia.com/gpu": {"type": "string"}}}
+                    }
+                  }
+                },
+                "required": ["name"]
+              }
+            }
+          }
+        }
+      },
+      "required": ["model"]
+    }
+  },
+  "required": ["apiVersion", "kind", "metadata", "spec"]
+}
