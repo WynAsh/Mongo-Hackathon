@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Harness Architect</title>
+<style>
+  :root { --bg:#0e1116; --panel:#161b22; --line:#2a313c; --ink:#e6edf3; --muted:#8b949e;
+          --good:#3fb950; --bad:#f85149; --warn:#d29922; --accent:#58a6ff; --mem:#bc8cff; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:14px/1.45 ui-sans-serif,system-ui,sans-serif; }
+  header { display:flex; gap:16px; align-items:baseline; padding:14px 20px; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  header h1 { font-size:18px; margin:0; }
+  .pill { padding:2px 10px; border-radius:99px; background:var(--panel); border:1px solid var(--line); color:var(--muted); }
+  main { display:grid; grid-template-columns: minmax(0,1.6fr) minmax(0,1fr); gap:16px; padding:16px 20px; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  section { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:14px; min-width:0; }
+  h2 { font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin:0 0 10px; }
+  #log { height: calc(100vh - 130px); overflow:auto; }
+  .ev { display:grid; grid-template-columns: 64px 84px 1fr; gap:8px; padding:7px 0; border-bottom:1px solid var(--line); }
+  .ev time { color:var(--muted); font-variant-numeric: tabular-nums; }
+  .tag { font-size:11px; font-weight:600; text-transform:uppercase; }
+  .k-observe .tag { color:var(--bad); } .k-recall .tag { color:var(--mem); } .k-propose .tag { color:var(--accent); }
+  .k-test .tag, .k-results .tag { color:var(--warn); } .k-promote .tag { color:var(--good); }
+  .k-promote { background: rgba(63,185,80,.08); } .k-phase .tag { color:var(--muted); }
+  .sub { color:var(--muted); font-size:12px; margin-top:3px; }
+  .pools { display:flex; gap:10px; flex-wrap:wrap; margin:6px 0 4px; }
+  .pool { border:1px solid var(--line); border-radius:8px; padding:8px 10px; min-width:120px; }
+  .pool b { display:block; margin-bottom:6px; }
+  .gpu { display:inline-block; width:34px; height:24px; margin:2px; border-radius:4px; font-size:10px;
+         line-height:24px; text-align:center; font-weight:700; }
+  .gpu.t4 { background:#1f6feb33; border:1px solid #1f6feb; } .gpu.a100 { background:#8957e533; border:1px solid #8957e5; }
+  .flash { animation: flash 1.2s ease-out; } @keyframes flash { from { box-shadow: 0 0 0 3px var(--good); } to { box-shadow:none; } }
+  .side { display:flex; flex-direction:column; gap:16px; }
+  svg { width:100%; height:90px; }
+  .lesson { padding:6px 0; border-bottom:1px solid var(--line); }
+  .conf { color:var(--mem); font-size:12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Harness Architect</h1>
+  <span class="pill" id="phase">traffic: —</span>
+  <span class="pill" id="p95now">p95: —</span>
+  <span class="pill" id="exps">experiments: 0</span>
+</header>
+<main>
+  <section><h2>Agent decision log</h2><div id="log"></div></section>
+  <div class="side">
+    <section><h2>Live serving setup</h2><div id="arch"></div></section>
+    <section><h2>p95 latency (5s buckets) · dashed = SLO</h2><svg id="chart" viewBox="0 0 300 90" preserveAspectRatio="none"></svg></section>
+    <section><h2>Lessons in memory</h2><div id="lessons"></div></section>
+  </div>
+</main>
+<script>
+let lastVersion = null;
+const esc = s => String(s ?? "").replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+const fmt = ts => new Date(ts*1000).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit",second:"2-digit"});
+
+function renderArch(a) {
+  if (!a) return "<div class='sub'>no live setup yet</div>";
+  const pools = Object.entries(a.pools).sort().map(([n,p]) =>
+    `<div class="pool"><b>${esc(n)}${a.split_threshold_tokens && n==="long" ? ` (≥${a.split_threshold_tokens} tok)` : ""}${a.split_threshold_tokens && n==="short" ? ` (&lt;${a.split_threshold_tokens} tok)` : ""}</b>` +
+    Array.from({length:p.replicas}, () => `<span class="gpu ${p.gpu}">${p.gpu.toUpperCase()}</span>`).join("") + "</div>").join("");
+  const cost = Object.values(a.pools).reduce((s,p) => s + p.replicas * (p.gpu==="t4" ? 0.5 : 3), 0);
+  return `<div class="sub">v${a.version} · by ${esc(a.created_by)} · $${cost.toFixed(2)}/hr</div>
+          <div class="pools ${a.version!==lastVersion && lastVersion!==null ? "flash":""}">${pools}</div>
+          <div class="sub">${esc(a.reason)}</div>`;
+}
+
+function renderChart(series, slo) {
+  const svg = document.getElementById("chart");
+  if (!series.length) { svg.innerHTML = ""; return; }
+  const max = Math.max(slo * 1.5, ...series.map(s => s.p95));
+  const x = i => series.length === 1 ? 150 : i * 300 / (series.length - 1);
+  const y = v => 88 - v / max * 84;
+  const pts = series.map((s,i) => `${x(i)},${y(s.p95)}`).join(" ");
+  svg.innerHTML = `<line x1="0" x2="300" y1="${y(slo)}" y2="${y(slo)}" stroke="#d29922" stroke-dasharray="4 3" vector-effect="non-scaling-stroke"/>
+    <polyline points="${pts}" fill="none" stroke="#58a6ff" stroke-width="2" vector-effect="non-scaling-stroke"/>`;
+}
+
+async function tick() {
+  try {
+    const s = await (await fetch("/api/state")).json();
+    document.getElementById("phase").textContent = "traffic: " + (s.phase?.name ?? "—");
+    const last = s.series.at(-1);
+    const p = document.getElementById("p95now");
+    p.textContent = "p95: " + (last ? (last.p95/1000).toFixed(1) + "s" : "—");
+    p.style.color = last && last.p95 > s.slo_ms ? "var(--bad)" : "var(--good)";
+    document.getElementById("exps").textContent = "experiments: " + s.experiments;
+    document.getElementById("log").innerHTML = s.events.map(e =>
+      `<div class="ev k-${esc(e.kind)}"><time>${fmt(e.ts)}</time><span class="tag">${esc(e.kind)}</span><div>${esc(e.msg)}` +
+      (e.candidates ? `<div class="sub">${e.candidates.map(c => "• " + esc(c.summary ?? c) + (c.reason ? " — " + esc(c.reason) : "")).join("<br>")}</div>` : "") +
+      (e.lessons && e.lessons.length ? `<div class="sub">${e.lessons.map(l => "↳ " + esc(l.text)).join("<br>")}</div>` : "") +
+      `</div></div>`).join("");
+    document.getElementById("arch").innerHTML = renderArch(s.live);
+    lastVersion = s.live?.version ?? lastVersion;
+    renderChart(s.series, s.slo_ms);
+    document.getElementById("lessons").innerHTML = s.lessons.length ? s.lessons.map(l =>
+      `<div class="lesson">${esc(l.text)}<div class="conf">confirmed ${l.confirmed ?? 0}× · contradicted ${l.contradicted ?? 0}×</div></div>`).join("")
+      : "<div class='sub'>none yet</div>";
+  } catch (e) { console.log(e); }
+}
+setInterval(tick, 1000); tick();
+</script>
+</body>
+</html>
