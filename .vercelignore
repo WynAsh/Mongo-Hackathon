@@ -1,0 +1,15 @@
+.venv/
+.git/
+.pytest_cache/
+__pycache__/
+tests/
+docs/
+infra/
+traffic/
+agent/
+gateway/
+memory/
+scripts/
+.env
+atlas-credentials.env
+requirements-dev.txt

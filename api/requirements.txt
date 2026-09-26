@@ -1,0 +1,10 @@
+# Planner-only subset of the root requirements. No docker/traffic/sim deps.
+fastapi>=0.110
+uvicorn>=0.29
+pydantic>=2.6
+pymongo>=4.7
+mongomock>=4.1
+python-dotenv>=1.0
+PyYAML>=6,<7
+jsonschema>=4.23,<5
+strands-agents[openai]>=1.57,<2

@@ -130,3 +130,20 @@ Adding replicas doesn't fix a long-prompt surge; isolating long prefills does. T
 | D: Memory + demo | memory, UI, video | `memory/`, `ui/`, `scripts/` |
 
 `common/contracts.py` is the shared contract. Change it only as a team.
+
+## Hosting the planner on Vercel
+
+`api/index.py` exposes the same ASGI app as `python -m ui.server`, and `vercel.json`
+rewrites every path to it. Only the planner is deployable: the agent loop, gateway,
+reconciler, traffic generator, and Docker sims are long-running processes, so
+`/simulation` on Vercel shows whatever the last local run left in Atlas and does not
+advance.
+
+Set `MONGODB_URI` in the Vercel project (Settings -> Environment Variables) and allow
+`0.0.0.0/0` in the Atlas project's Network Access list, since serverless egress IPs are
+not fixed. Without `MONGODB_URI` each invocation gets its own in-memory database and
+`/api/production/plans/<id>/download` returns 404. `OPENROUTER_API_KEY` is optional; with
+it unset the stack pick is the deterministic rules default and `decided_by` reads `rules`.
+
+`api/requirements.txt` is the planner-only dependency subset the function installs; the
+root `requirements.txt` still covers the full local demo.
