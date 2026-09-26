@@ -2,7 +2,7 @@
 
 **Teams running open-source models control every part of their serving stack but don't have time to tune it. Our agent does it for them.**
 
-An agent that watches live LLM-serving traffic, proposes changes to the *whole serving architecture* (pool layout, GPU types, replica counts), **shadow-tests every change on replayed traffic** before touching production, promotes only proven winners, and **remembers which setups won under which traffic** in MongoDB Atlas, so the next time that traffic returns it fixes the problem faster.
+An agent that watches live LLM-serving traffic, proposes changes to the *whole serving architecture* (pool layout, GPU types, replica counts), **shadow-tests every change on identical persisted traffic** before touching production, promotes only proven winners, and **remembers which setups won under which traffic** in MongoDB Atlas. Campaigns survive restarts without replaying an ever-growing chat transcript.
 
 > Built entirely during the MongoDB Harness Engineering hackathon (Sep 26, 2026). One of us has built an inference router before; nothing from that repo is used here. The gateway is deliberately simple. All the intelligence is in the agent.
 
@@ -10,9 +10,9 @@ An agent that watches live LLM-serving traffic, proposes changes to the *whole s
 
 ```
  8  UI (ui/)            decision log + live setup diagram
- 7  Agent (agent/)      observe -> recall -> propose (LLM) -> shadow test -> promote -> learn
- 6  Memory (memory/)    regimes + lessons (Atlas Vector Search), Thompson-sampling bandit
- 5  Shadow (infra/shadow.py)   candidate setups on separate ports, replayed traffic, scored
+ 7  Agent (agent/)      durable controller + bounded-context Strands architect
+ 6  Memory (memory/)    policy -> checkpoint -> observations -> bandit -> lessons -> evidence
+ 5  Shadow (infra/shadow.py)   immutable replay, paired serial trials, deterministic gates
  4  Control plane       live Arch doc in Mongo -> change stream -> gateway + reconciler hot-swap (blue/green)
  3  Gateway (gateway/)  OpenAI-compatible proxy: pool by prompt length, least-in-flight; logs to time-series
  2  Traffic (traffic/)  Poisson load: quiet -> long-document surge -> quiet -> surge again
@@ -29,17 +29,43 @@ An agent that watches live LLM-serving traffic, proposes changes to the *whole s
 | `lessons` | plain-English lessons, confirmed/contradicted | **Vector Search** |
 | `experiments` | every shadow test result | aggregation |
 | `events` | agent decision log (UI) | |
+| `campaigns`, `campaign_checkpoints` | stage, revision, lease, budget, compact working memory | atomic compare-and-swap |
+| `replay_plans`, `trials`, `evaluations` | immutable traffic and promotion evidence | resumable/idempotent execution |
+| `summaries`, `context_manifests` | evidence-linked compaction and exact model inputs | bounded context |
+| `docs` | heading-aware documentation chunks and provenance | semantic + lexical retrieval |
+
+## Long-horizon workflow
+
+```text
+OBSERVE -> BUILD_CONTEXT -> PROPOSE -> VALIDATE -> PREPARE_REPLAY
+        -> RUN_TRIALS -> EVALUATE -> PROMOTE/REJECT -> VERIFY_LIVE
+        -> LEARN -> CHECKPOINT -> OBSERVE
+```
+
+The controller, not the model, owns transitions. Every transition increments a MongoDB revision and writes a checkpoint. A renewable lease permits one campaign writer, deterministic IDs reuse completed work after a crash, and promotion checks the expected live architecture version. Post-promotion telemetry can restore the previous architecture as a new version.
+
+Each Strands invocation is stateless. The context compiler fits policy, the campaign checkpoint, the current observation, similar-regime winners, scoped lessons, supporting experiments, and documentation into `AGENT_CONTEXT_TOKENS`. A persisted context manifest records what was included or excluded and why. Raw requests expire after six hours; durable windows, trials, episodes, lessons, regime summaries, and campaign checkpoints form the compaction ladder.
 
 ## Quick start
 
 ```bash
-pip install -r requirements.txt
+python -m venv .venv
+# Windows: .venv\Scripts\python -m pip install -r requirements-dev.txt
+# macOS/Linux: .venv/bin/python -m pip install -r requirements-dev.txt
 cp .env.example .env        # set MONGO_URI (Atlas sandbox) and OPENROUTER_API_KEY
 
 # offline, no Docker, no Atlas: in-memory Mongo + fake sims + heuristic proposer
 MONGO_URI=mock SIM_MODE=fake python -m scripts.run_all --phase-s 60
 # open http://127.0.0.1:9100
 ```
+
+Leave `OPENROUTER_API_KEY` empty for the deterministic heuristic proposer and lexical retrieval. With a key, Strands uses OpenRouter's OpenAI-compatible endpoint for typed proposals and the same provider for 1,536-dimensional embeddings. Optional docs can be ingested with:
+
+```bash
+python -m scripts.ingest_docs
+```
+
+`DOC_SOURCES` accepts comma-separated local Markdown/text paths or curated HTTP(S) URLs.
 
 Against Atlas with real llm-d sims:
 

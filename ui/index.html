@@ -35,6 +35,15 @@
   svg { width:100%; height:90px; }
   .lesson { padding:6px 0; border-bottom:1px solid var(--line); }
   .conf { color:var(--mem); font-size:12px; }
+  .memory-panel { display:grid; gap:12px; }
+  .memory-block { border-top:1px solid var(--line); padding-top:9px; min-width:0; }
+  .memory-block:first-child { border-top:0; padding-top:0; }
+  .memory-title { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.06em; margin-bottom:5px; }
+  .memory-pills { display:flex; gap:6px; flex-wrap:wrap; }
+  .memory-pills .pill { font-size:12px; }
+  .memory-ids { overflow-wrap:anywhere; }
+  .gate { display:inline-block; margin:2px 4px 2px 0; padding:1px 7px; border-radius:99px; border:1px solid var(--line); font-size:11px; }
+  .gate.pass { color:var(--good); } .gate.fail { color:var(--bad); }
 </style>
 </head>
 <body>
@@ -48,6 +57,7 @@
   <section><h2>Agent decision log</h2><div id="log"></div></section>
   <div class="side">
     <section><h2>Live serving setup</h2><div id="arch"></div></section>
+    <section><h2>Optimization memory</h2><div id="horizon" class="memory-panel"></div></section>
     <section><h2>p95 latency (5s buckets) · dashed = SLO</h2><svg id="chart" viewBox="0 0 300 90" preserveAspectRatio="none"></svg></section>
     <section><h2>Lessons in memory</h2><div id="lessons"></div></section>
   </div>
@@ -79,6 +89,42 @@ function renderChart(series, slo) {
     <polyline points="${pts}" fill="none" stroke="#58a6ff" stroke-width="2" vector-effect="non-scaling-stroke"/>`;
 }
 
+function renderHorizon(h) {
+  if (!h) return "<div class='sub'>long-horizon state is not available</div>";
+  const campaign = h.campaign;
+  const status = `<div class="memory-block"><div class="memory-title">Campaign</div>` +
+    `<div class="memory-pills">` +
+    `<span class="pill">stage: ${esc(h.stage ?? "—")}</span>` +
+    `<span class="pill">revision: ${esc(h.revision ?? "—")}</span>` +
+    `<span class="pill">budget left: ${esc(h.budget_remaining ?? "—")}</span></div>` +
+    (campaign?.goal ? `<div class="sub">${esc(campaign.goal)}</div>` : "") + `</div>`;
+
+  const context = h.context_manifest
+    ? `<div class="memory-block"><div class="memory-title">Latest context packet · ${esc(h.context_manifest.token_count ?? 0)} tokens` +
+      `${h.context_manifest.token_budget ? ` / ${esc(h.context_manifest.token_budget)}` : ""}</div>` +
+      `<div class="sub">Manifest ${esc(h.context_manifest.manifest_id ?? "—")}</div>` +
+      `<div class="sub memory-ids">Included: ${h.context_manifest.included_ids.length ? h.context_manifest.included_ids.map(esc).join(", ") : "none"}</div></div>`
+    : `<div class="memory-block"><div class="memory-title">Latest context packet</div><div class="sub">none recorded</div></div>`;
+
+  const replay = h.replay
+    ? `<div class="sub">Replay: ${esc(h.replay.replay_id ?? "—")} · hash ${esc((h.replay.content_hash ?? "").slice(0, 16) || "—")}</div>`
+    : `<div class="sub">No replay recorded</div>`;
+  const trial = h.latest_trial;
+  const trialText = trial
+    ? `${esc(trial.role ?? "trial")} · repeat ${esc(trial.repeat ?? "—")} · ${esc(trial.n ?? 0)} requests · p95 ${esc(trial.p95_ms ?? "—")} ms · errors ${esc(trial.errors ?? 0)}`
+    : "No trial recorded";
+  const ev = h.latest_evaluation;
+  const gates = (ev?.gates ?? []).map(g => `<span class="gate ${g.passed ? "pass" : "fail"}">${g.passed ? "✓" : "✕"} ${esc(g.name)}: ${esc(g.detail ?? "")}</span>`).join("");
+  const experiment = `<div class="memory-block"><div class="memory-title">Latest experiment</div>${replay}` +
+    `<div class="sub">${trialText}</div>` +
+    (ev ? `<div class="sub">Evaluation: ${esc(ev.decision ?? "—")}</div>${gates || "<div class='sub'>No gate details</div>"}` : `<div class="sub">No evaluation recorded</div>`) + `</div>`;
+
+  const events = h.verification_events ?? [];
+  const checks = events.length ? events.map(e => `<div class="sub"><b>${esc(e.kind)}</b> · ${esc(e.msg)}${e.ts ? ` <span>${fmt(e.ts)}</span>` : ""}</div>`).join("")
+    : `<div class="sub">No verification or rollback events</div>`;
+  return status + context + experiment + `<div class="memory-block"><div class="memory-title">Verification and rollback</div>${checks}</div>`;
+}
+
 async function tick() {
   try {
     const s = await (await fetch("/api/state")).json();
@@ -94,6 +140,7 @@ async function tick() {
       (e.lessons && e.lessons.length ? `<div class="sub">${e.lessons.map(l => "↳ " + esc(l.text)).join("<br>")}</div>` : "") +
       `</div></div>`).join("");
     document.getElementById("arch").innerHTML = renderArch(s.live);
+    document.getElementById("horizon").innerHTML = renderHorizon(s.long_horizon);
     lastVersion = s.live?.version ?? lastVersion;
     renderChart(s.series, s.slo_ms);
     document.getElementById("lessons").innerHTML = s.lessons.length ? s.lessons.map(l =>
