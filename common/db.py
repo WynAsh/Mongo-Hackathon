@@ -2,11 +2,21 @@
 from __future__ import annotations
 
 import time
+import threading
 from functools import lru_cache
 
 from . import config
 
-COLLECTIONS = ["architectures", "requests", "regimes", "experiments", "lessons", "events", "state", "docs"]
+COLLECTIONS = [
+    "architectures", "requests", "regimes", "experiments", "lessons", "events", "state",
+    "campaigns", "campaign_checkpoints", "policies", "metric_windows", "replay_plans",
+    "trials", "evaluations", "summaries", "context_manifests", "docs",
+]
+_PROMOTION_LOCK = threading.Lock()
+
+
+class StaleArchitectureError(RuntimeError):
+    """The live architecture no longer matches the expected version."""
 
 
 @lru_cache(maxsize=1)
@@ -45,6 +55,41 @@ def promote(arch_dict: dict) -> int:
     db().architectures.update_many({"status": "live"}, {"$set": {"status": "retired"}})
     db().architectures.insert_one(arch_dict)
     return arch_dict["version"]
+
+
+def promote_compare_and_swap(arch_dict: dict, expected_version: int, database=None) -> dict:
+    """Atomically promote only if the currently-live architecture is unchanged.
+
+    Atlas uses a transaction. Mock mode uses a process lock and a version check,
+    which is sufficient for the single-process demo runtime.
+    """
+    d = database if database is not None else db()
+    architectures = d.architectures
+
+    def commit(session=None):
+        kwargs = {"session": session} if session is not None else {}
+        current = architectures.find_one({"status": "live"}, sort=[("version", -1)], **kwargs)
+        actual = current.get("version") if current else None
+        if actual != expected_version:
+            raise StaleArchitectureError(f"expected live version {expected_version}, found {actual}")
+        retired = architectures.update_one(
+            {"_id": current["_id"], "status": "live", "version": expected_version},
+            {"$set": {"status": "retired"}}, **kwargs,
+        )
+        if retired.matched_count != 1:
+            raise StaleArchitectureError("live architecture changed during promotion")
+        promoted = dict(arch_dict)
+        promoted.pop("_id", None)
+        promoted.update({"version": expected_version + 1, "status": "live", "created_at": time.time()})
+        architectures.insert_one(promoted, **kwargs)
+        return promoted
+
+    # Explicit mock mode and mongomock don't implement sessions/transactions.
+    if is_mock() or type(architectures).__module__.startswith("mongomock"):
+        with _PROMOTION_LOCK:
+            return commit()
+    with d.client.start_session() as session:
+        return session.with_transaction(lambda active: commit(active))
 
 
 def log_event(kind: str, msg: str, **data):

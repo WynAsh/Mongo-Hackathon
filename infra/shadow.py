@@ -52,6 +52,48 @@ def run_shadow(arch: Arch, profile: TrafficProfile, seconds: float, slot: int = 
                         errors=errors, usd_hr=arch.usd_hr())
 
 
+async def _drive_replay(arch: Arch, eps: dict, events: list[dict]):
+    """Send a persisted open-loop trace at its recorded offsets."""
+    bal = Balancer(eps)
+    results: list[dict] = []
+    async with httpx.AsyncClient(timeout=120, limits=httpx.Limits(max_connections=500)) as client:
+        async def send(index: int, event: dict):
+            await asyncio.sleep(max(0, event["offset_ms"] / 1000 - (time.monotonic() - start)))
+            url = bal.acquire(pick_pool(arch.split_threshold_tokens, event["prompt_tokens"]))
+            t0 = time.monotonic()
+            latency = None
+            error = None
+            try:
+                response = await client.post(f"{url}/v1/chat/completions", json={
+                    "model": "dummy", "max_tokens": event["output_tokens"],
+                    "messages": [{"role": "user", "content": make_prompt(event["prompt_tokens"])}],
+                })
+                if response.status_code == 200:
+                    latency = (time.monotonic() - t0) * 1000
+                else:
+                    error = f"http_{response.status_code}"
+            except Exception as exc:  # noqa: BLE001
+                error = type(exc).__name__
+            finally:
+                bal.release(url)
+            results.append({"event_index": index, "latency_ms": latency, "error": error})
+
+        start = time.monotonic()
+        await asyncio.gather(*(asyncio.create_task(send(i, event)) for i, event in enumerate(events)))
+    results.sort(key=lambda item: item["event_index"])
+    return results
+
+
+def run_replay(arch: Arch, events: list[dict], slot: int = 0) -> list[dict]:
+    """Run one architecture against the exact supplied replay events."""
+    env = f"shadow{slot}"
+    try:
+        eps = deployer.deploy(arch, env, startup_delay=0)
+        return asyncio.run(_drive_replay(arch, eps, events))
+    finally:
+        deployer.teardown(env)
+
+
 def run_many(archs: list[Arch], profile: TrafficProfile, seconds: float | None = None) -> list[ShadowResult]:
     seconds = seconds or config.SHADOW_S
     archs = archs[:MAX_SLOTS]
