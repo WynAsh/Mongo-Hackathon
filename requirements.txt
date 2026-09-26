@@ -6,3 +6,6 @@ pymongo>=4.7
 docker>=7.0
 mongomock>=4.1
 python-dotenv>=1.0
+strands-agents[openai]>=1.57,<2
+beautifulsoup4>=4.12,<5
+tiktoken>=0.8,<1
